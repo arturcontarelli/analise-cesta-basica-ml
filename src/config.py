@@ -66,16 +66,9 @@ PRODUTOS = [
     "Pão Francês",
 ]
 
-# Decisão 2: Macarrão com Ovos só entra se sobreviver à limpeza (provavelmente
-# nenhum mercado tem série longa dele). Decidir no notebook 01/02 e, se entrar,
-# mover para PRODUTOS.
-PRODUTOS_CONDICIONAIS = [
-    "Macarrão com Ovos",
-]
-
 # Decisão 2 (limpeza obrigatória de nomes): nomes duplicados -> nome padrão.
 # Levantado a partir dos valores distintos da coluna Produto. Inclui produtos
-# fora do escopo (pernil, acém) para que as contagens da exploração fiquem
+# fora do escopo (pernil, acém, macarrão) para que as contagens da exploração fiquem
 # corretas mesmo antes do filtro.
 MAPA_NOMES_PRODUTOS = {
     "Pão": "Pão Francês",

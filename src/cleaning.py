@@ -38,8 +38,7 @@ def padronizar_nomes_produtos(df: pd.DataFrame) -> pd.DataFrame:
 def filtrar_produtos(df: pd.DataFrame, produtos: list[str] | None = None) -> pd.DataFrame:
     """Mantém apenas os produtos analisados.
 
-    Decisão 2: por padrão usa `config.PRODUTOS`. Para incluir Macarrão com
-    Ovos (produto condicional), passe a lista explicitamente.
+    Decisão 2: por padrão usa `config.PRODUTOS`.
     """
     raise NotImplementedError
 

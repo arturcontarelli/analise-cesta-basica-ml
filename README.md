@@ -25,7 +25,7 @@ O enunciado do professor está em [`docs/enunciado.md`](docs/enunciado.md).
 - Usa os dados **por mercado**, só de mercados com cerca de 40 dos 48 meses ou mais.
 - K-Means, com k escolhido por cotovelo, silhueta e índice Xie-Beni, e verificação da estabilidade dos grupos no tempo.
 
-Produtos analisados: Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomate, Batata, Banana Prata, Banana Nanica, Carne Bovina Coxão Mole e Pão Francês. Macarrão com Ovos entra se sobreviver à limpeza.
+Produtos analisados: Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomate, Batata, Banana Prata, Banana Nanica, Carne Bovina Coxão Mole e Pão Francês.
 
 ## Estrutura
 
@@ -56,19 +56,35 @@ Regras de organização:
 
 Requer Python 3.10 ou superior.
 
-```bash
-# na pasta do repositório
-python -m venv .venv
+Usamos um **ambiente virtual** (`.venv`): uma pasta dentro do repositório onde ficam as bibliotecas do projeto, isoladas do Python do sistema. Assim todos do grupo usam as mesmas versões e nada é instalado na máquina como um todo. Para desfazer, basta apagar a pasta `.venv`. Ela é ignorada pelo git (cada um cria a sua).
 
-# ativar o ambiente
-# Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-# Linux/macOS:
-source .venv/bin/activate
+**Primeira vez** (na pasta do repositório):
 
-pip install -r requirements.txt
-jupyter notebook
+```powershell
+python -m venv .venv                                    # cria o ambiente
+.venv\Scripts\python.exe -m pip install -r requirements.txt   # instala as bibliotecas DENTRO do .venv
 ```
+
+No Linux/macOS, troque `.venv\Scripts\python.exe` por `.venv/bin/python`.
+
+> Prefira chamar `.venv\Scripts\python.exe -m pip` em vez de só `pip`: assim a instalação vai para o `.venv` mesmo que o ambiente não esteja ativado. Um `pip install` "solto" sem o ambiente ativo instala no Python do sistema.
+
+**Para usar no dia a dia**, escolha uma opção:
+
+- **VS Code:** abra um notebook e, no canto superior direito ("Select Kernel"), escolha o Python de `.venv`. Não precisa ativar nada.
+- **Navegador:** ative o ambiente e abra o Jupyter:
+  ```powershell
+  .venv\Scripts\Activate.ps1      # Linux/macOS: source .venv/bin/activate
+  jupyter notebook                 # abre o Jupyter no navegador; Ctrl+C no terminal para fechar
+  ```
+  Com o ambiente ativo, o terminal mostra `(.venv)` no início da linha.
+
+**Problemas comuns:**
+
+- *"A execução de scripts foi desabilitada neste sistema"* ao ativar no PowerShell: rode uma vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` e tente de novo.
+- *`ModuleNotFoundError: No module named 'pandas'`* no notebook: o kernel/terminal não está usando o `.venv`. Confira o kernel selecionado (VS Code) ou se aparece `(.venv)` no terminal.
+- Para conferir qual `pip` está sendo usado: `(Get-Command pip).Source` deve apontar para `...\.venv\Scripts\pip.exe`.
+- Se alguém adicionar uma biblioteca ao `requirements.txt`, os outros rodam de novo o comando de instalação.
 
 ## Ordem de execução
 
