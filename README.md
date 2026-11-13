@@ -3,6 +3,8 @@
 Trabalho final da disciplina **Sistemas Inteligentes e Aprendizado de Máquina** (13134), PUC Campinas. Grupo de 4 pessoas.
 
 > **Leia [`docs/decisoes.md`](docs/decisoes.md) antes de alterar qualquer coisa.** Lá está cada decisão do projeto e o motivo dela. Se uma decisão mudar, registre a mudança lá.
+>
+> Quem faz o quê: [`docs/divisao.md`](docs/divisao.md).
 
 ## Objetivo (trabalho de extensão)
 
