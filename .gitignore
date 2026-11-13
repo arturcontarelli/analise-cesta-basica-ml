@@ -1,0 +1,24 @@
+# Ambientes virtuais
+.venv/
+venv/
+env/
+.env
+
+# Caches do Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Checkpoints de notebook
+.ipynb_checkpoints/
+
+# Arquivos temporários do Excel (criados quando a planilha está aberta)
+~$*
+
+# Editores e sistema operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ATENÇÃO: NÃO ignorar data/raw/. O enunciado exige entregar as bases usadas.
