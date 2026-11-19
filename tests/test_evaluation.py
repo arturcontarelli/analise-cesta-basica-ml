@@ -9,8 +9,10 @@ import pandas as pd
 import pytest
 
 from src.evaluation import (
+    direcao,
     divisao_temporal,
     divisao_treino_validacao,
+    metricas_direcao,
     metricas_regressao,
     walk_forward,
 )
@@ -79,14 +81,22 @@ def test_metricas_regressao_calcula_mae_e_mse_sem_trocar():
     assert metricas["MSE"] == pytest.approx(17 / 3)
 
 
-@pytest.mark.skip(reason="direcao ainda não implementada (heurística a discutir antes)")
-def test_direcao():
-    ...
+def test_direcao_sobe_quando_maior_que_referencia():
+    preco_atual = np.array([11, 10, 10])
+    preco_referencia = np.array([10, 10, 11])
+
+    assert direcao(preco_atual, preco_referencia).tolist() == [1, 0, 0]
 
 
-@pytest.mark.skip(reason="metricas_direcao ainda não implementada (heurística a discutir antes)")
-def test_metricas_direcao():
-    ...
+def test_metricas_direcao_calcula_matriz_e_scores():
+    preco_atual = np.array([10, 10, 10, 10])
+    y_real = np.array([11, 9, 12, 10])  # sobe, não sobe, sobe, não sobe
+    y_previsto = np.array([11, 11, 9, 10])  # sobe, sobe, não sobe, não sobe
+
+    metricas = metricas_direcao(preco_atual, y_real, y_previsto)
+
+    assert set(metricas.keys()) == {"matriz_confusao", "acuracia", "precisao", "revocacao"}
+    assert metricas["acuracia"] == pytest.approx(0.5)
 
 
 @pytest.mark.skip(reason="avaliar_modelo ainda não implementada")

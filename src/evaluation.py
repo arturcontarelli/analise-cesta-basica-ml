@@ -14,7 +14,14 @@ from collections.abc import Iterator
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    recall_score,
+)
 from sklearn.model_selection import TimeSeriesSplit
 
 from src import config
@@ -96,8 +103,13 @@ def direcao(preco_atual: np.ndarray, preco_referencia: np.ndarray) -> np.ndarray
 
     TODO: decidir se igualdade conta como "não sobe" (padrão sugerido) e se
     haverá tolerância mínima para considerar alta.
+
+    Decisão: igualdade conta como "não sobe" (`>` estrito, não `>=`); sem
+    tolerância mínima por enquanto (qualquer aumento conta como "sobe"). Se a
+    exploração mostrar muita variação de ruído perto de zero, reavaliar.
     """
-    raise NotImplementedError
+    diferenca = np.asarray(preco_atual) - np.asarray(preco_referencia)
+    return (diferenca > 0).astype(int)
 
 
 def metricas_direcao(
@@ -111,7 +123,15 @@ def metricas_direcao(
     matriz de confusão, acurácia, precisão e revocação. Responde "compro agora
     ou espero?". Reportar separado das métricas em valor (decisão 7).
     """
-    raise NotImplementedError
+    direcao_real = direcao(y_real, preco_atual)
+    direcao_prevista = direcao(y_previsto, preco_atual)
+
+    return {
+        "matriz_confusao": confusion_matrix(direcao_real, direcao_prevista),
+        "acuracia": accuracy_score(direcao_real, direcao_prevista),
+        "precisao": precision_score(direcao_real, direcao_prevista, zero_division=0),
+        "revocacao": recall_score(direcao_real, direcao_prevista, zero_division=0),
+    }
 
 
 def avaliar_modelo(modelo, base: pd.DataFrame, colunas_entrada: list[str], coluna_alvo: str) -> pd.DataFrame:
