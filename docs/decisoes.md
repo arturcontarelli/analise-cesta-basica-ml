@@ -137,3 +137,16 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 - **`src/config.py` como fonte única** da lista de produtos, nomes duplicados e caminhos: se uma decisão mudar, muda em um lugar só.
 - **Dados originais em `data/raw/` e nunca editados:** qualquer pessoa consegue refazer tudo do zero. Os dados gerados vão para `data/processed/`.
 - **Os dados ficam no repositório:** o enunciado exige entregar "código fonte e demais bases de dados utilizadas".
+
+---
+
+## 9. Formato da série geral: tabela longa
+
+**Decisão:** `aggregation.serie_geral` (parte A) devolve uma tabela no formato **longo**, com colunas `produto`, `mes`, `preco` e `n_mercados` (uma linha por combinação produto/mês), e não uma tabela larga (um produto por coluna).
+
+**Por quê:**
+- A Q1 (parte C) percorre os produtos em loop (`config.PRODUTOS`) para montar lags e treinar um modelo por produto; no formato longo isso é só `df[df.produto == produto]`, sem precisar de `pivot`.
+- Facilita juntar depois as variáveis da CONAB (decisão 5), que também vêm como série por período — concatenar duas tabelas longas por `mes` é mais direto do que alinhar colunas largas.
+- `n_mercados` (quantos mercados entraram na mediana daquele mês) é útil na exploração (notebook 02) e fica natural como mais uma coluna no formato longo.
+
+**Combinar com quem for implementar `aggregation.py`:** este é o contrato de dados entre a parte A e a parte C — se o formato mudar, as duas partes precisam ser avisadas.
