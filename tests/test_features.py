@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.features import criar_alvo, criar_lags
+from src.features import criar_alvo, criar_lags, montar_base_q1
 
 
 def _serie_exemplo() -> pd.Series:
@@ -53,6 +53,18 @@ def test_adicionar_variaveis_conab():
     ...
 
 
-@pytest.mark.skip(reason="montar_base_q1 ainda não implementada")
-def test_montar_base_q1():
-    ...
+def test_montar_base_q1_filtra_produto_e_remove_nan_das_pontas():
+    mes = list(pd.period_range("2024-01", periods=6, freq="M"))
+    geral = pd.DataFrame({
+        "produto": ["Cafe"] * 6 + ["Arroz"] * 6,
+        "mes": mes + mes,
+        "preco": [10, 11, 12, 13, 14, 15] + [100, 101, 102, 103, 104, 105],
+        "n_mercados": [27] * 12,
+    })
+
+    base = montar_base_q1(geral, "Cafe", n_lags=2)
+
+    assert list(base.columns) == ["mes", "lag_1", "lag_2", "alvo"]
+    assert len(base) == 4  # 6 meses - 1 (sem lag_2) - 1 (sem alvo)
+    assert base["lag_1"].max() < 15  # nunca inclui o preço do Arroz
+    assert base["mes"].is_monotonic_increasing

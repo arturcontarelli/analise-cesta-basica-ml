@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from src.evaluation import (
+    avaliar_modelo,
     direcao,
     divisao_temporal,
     divisao_treino_validacao,
@@ -16,6 +17,7 @@ from src.evaluation import (
     metricas_regressao,
     walk_forward,
 )
+from src.q1_models import BaselineIngenuo
 
 
 def _base_exemplo(n_meses: int = 10) -> pd.DataFrame:
@@ -99,6 +101,21 @@ def test_metricas_direcao_calcula_matriz_e_scores():
     assert metricas["acuracia"] == pytest.approx(0.5)
 
 
-@pytest.mark.skip(reason="avaliar_modelo ainda não implementada")
-def test_avaliar_modelo():
-    ...
+def test_avaliar_modelo_com_baseline():
+    # alvo = lag_1 + 1 sempre: o baseline (que prevê lag_1) erra exatamente
+    # 1 em todo mês, e nunca prevê "sobe" (porque sempre repete o preço atual).
+    n = 40
+    base = pd.DataFrame({
+        "mes": pd.period_range("2020-01", periods=n, freq="M"),
+        "lag_1": np.arange(n, dtype=float),
+        "lag_2": np.arange(-1, n - 1, dtype=float),
+        "alvo": np.arange(1, n + 1, dtype=float),
+    })
+
+    resultado = avaliar_modelo(BaselineIngenuo(), base, ["lag_1", "lag_2"], "alvo")
+
+    assert set(resultado.columns) == {
+        "MAE", "MSE", "matriz_confusao", "acuracia", "precisao", "revocacao",
+    }
+    assert resultado["MAE"].iloc[0] == pytest.approx(1.0)
+    assert resultado["acuracia"].iloc[0] == pytest.approx(0.0)
