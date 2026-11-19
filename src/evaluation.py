@@ -141,4 +141,23 @@ def avaliar_modelo(modelo, base: pd.DataFrame, colunas_entrada: list[str], colun
     com MAE, MSE e as métricas de direção, pronta para comparar com o baseline
     e salvar em reports/tables/.
     """
-    raise NotImplementedError
+    y_reais = []
+    y_previstos = []
+    precos_atuais = []
+
+    for treino_fold, teste_fold in walk_forward(base):
+        modelo.fit(treino_fold[colunas_entrada], treino_fold[coluna_alvo])
+        previsto = modelo.predict(teste_fold[colunas_entrada])
+
+        y_reais.append(teste_fold[coluna_alvo].iloc[0])
+        y_previstos.append(previsto[0])
+        precos_atuais.append(teste_fold["lag_1"].iloc[0])
+
+    y_reais = np.array(y_reais)
+    y_previstos = np.array(y_previstos)
+    precos_atuais = np.array(precos_atuais)
+
+    metricas = metricas_regressao(y_reais, y_previstos)
+    metricas.update(metricas_direcao(precos_atuais, y_reais, y_previstos))
+
+    return pd.DataFrame([metricas])
