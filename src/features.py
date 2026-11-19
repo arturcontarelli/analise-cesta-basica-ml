@@ -64,4 +64,14 @@ def montar_base_q1(
     - remover linhas com NaN nas entradas ou no alvo;
     - manter a coluna de mês, em ordem cronológica, para a divisão temporal.
     """
-    raise NotImplementedError
+    serie = (
+        geral[geral["produto"] == produto].sort_values("mes").set_index("mes")["preco"]
+    )
+    base = criar_lags(serie, n_lags)
+    base["alvo"] = criar_alvo(serie)
+
+    if conab is not None and produto in config.PRODUTOS_CONAB:
+        base = adicionar_variaveis_conab(base, conab)
+
+    base = base.reset_index().dropna()
+    return base.sort_values("mes").reset_index(drop=True)
