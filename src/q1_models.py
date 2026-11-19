@@ -19,9 +19,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from src import evaluation, features
 
-from src import config
+from src import config, evaluation, features
 
 
 class BaselineIngenuo(BaseEstimator, RegressorMixin):
@@ -47,6 +46,7 @@ class BaselineIngenuo(BaseEstimator, RegressorMixin):
             return X[self.coluna_preco_atual].to_numpy()
         return np.asarray(X)[:, self.indice_coluna_]
 
+
 def criar_regressao_linear():
     """Cria o modelo de regressão linear (aula 09) usando os lags como entrada.
 
@@ -55,7 +55,7 @@ def criar_regressao_linear():
     """
     return Pipeline([
         ("scaler", StandardScaler()),
-        ("regressor", LinearRegression ()),
+        ("regressor", LinearRegression()),
     ])
 
 
@@ -68,7 +68,7 @@ def criar_knn(k: int):
     """
     return Pipeline([
         ("scaler", StandardScaler()),
-        ("regressor", KNeighborsRegressor(n_neighbors = k)),
+        ("regressor", KNeighborsRegressor(n_neighbors=k)),
     ])
 
 
@@ -93,18 +93,23 @@ def escolher_hiperparametros(base_treino, produto: str) -> dict:
     pelo MAE. Nunca olhar o teste.
     """
     melhor = None
+
     for n_lags in config.LAGS_CANDIDATOS:
-        erros = []
-        for treino_fold, validacao_fold in folds:
-            modelo = criar_knn(k)
-            modelo.fit(treino_fold[colunas_entrada], treino_fold["alvo"])
-            previsto = modelo.predict(validacao_fold[colunas_entrada])
-            mae = evaluation.metricas_regressao(validacao_fold["alvo"], previsto)["MAE"]
-            erros.append(mae)
+        base = features.montar_base_q1(base_treino, produto, n_lags)
+        folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
+        colunas_entrada = [f"lag_{i}" for i in range(1, n_lags + 1)]
 
-        mae_medio = sum(erros) / len(erros)
-        if melhor is None or mae_medio < ["mae"]:
-            melhor = {"n_lags": n_lags, "k": k, "mae": mae_medio}
+        for k in config.K_VIZINHOS_CANDIDATOS:
+            erros = []
+            for treino_fold, validacao_fold in folds:
+                modelo = criar_knn(k)
+                modelo.fit(treino_fold[colunas_entrada], treino_fold["alvo"])
+                previsto = modelo.predict(validacao_fold[colunas_entrada])
+                mae = evaluation.metricas_regressao(validacao_fold["alvo"], previsto)["MAE"]
+                erros.append(mae)
 
-        return {"n_lags": melhor["n_lags"], "k": melhor["k"]}
-    
+            mae_medio = sum(erros) / len(erros)
+            if melhor is None or mae_medio < melhor["mae"]:
+                melhor = {"n_lags": n_lags, "k": k, "mae": mae_medio}
+
+    return {"n_lags": melhor["n_lags"], "k": melhor["k"]}
