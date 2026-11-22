@@ -5,6 +5,7 @@ disponível até o mês t. Nada do futuro pode entrar nas entradas
 (decisão 7: evitar vazamento).
 """
 
+import numpy as np
 import pandas as pd
 
 from src import config
@@ -36,16 +37,36 @@ def criar_alvo(serie: pd.Series) -> pd.Series:
 def adicionar_variaveis_conab(base: pd.DataFrame, conab: pd.DataFrame, defasagem: int = 0) -> pd.DataFrame:
     """Acrescenta o custo do produtor (CONAB) como variável extra.
 
-    Decisão 5: só para `config.PRODUTOS_CONAB` (Arroz, Feijão, Café, Leite).
-    Hipótese: aumento no custo do produtor chega ao mercado alguns meses
-    depois, por isso a `defasagem` (em meses).
+    Decisão 5 (combinada com a parte C): a CONAB publica só 1 valor por ano
+    por local (notebook 03), então não há como recuperar os meses entre dois
+    relatos sem olhar o relato seguinte — isso seria vazamento (decisão 7).
+    Por isso o valor é repetido (forward-fill) a partir do último relato já
+    publicado até cada mês de `base`; meses antes do primeiro relato ficam
+    NaN (não há informação a repetir) e são descartados em `montar_base_q1`.
 
-    TODO: os custos provavelmente são por safra, não por mês. Definir no
-    notebook 03 se os valores serão repetidos ou interpolados, e justificar.
-    Se não for possível alinhar com os dados mensais, a CONAB é descartada
-    (decisão 5).
+    `conab` deve vir filtrada para um único produto (colunas `periodo` e
+    `custo`, saída de `data_loading.selecionar_series_conab`).
+
+    Colunas adicionadas:
+    - `custo_conab`: último custo do produtor conhecido até o mês.
+    - `meses_desde_relato_conab`: idade dessa informação (0 no mês do
+      relato, 1 no mês seguinte...), para o modelo aprender a dar menos peso
+      a um custo "velho" em vez de isso ser decidido na mão.
+
+    `defasagem` desloca as duas colunas para ainda mais no passado (nunca
+    para o futuro), pela hipótese de que o custo do produtor leva tempo
+    para chegar ao mercado.
     """
-    raise NotImplementedError
+    custo_mensal = conab.sort_values("periodo").set_index("periodo")["custo"].reindex(base.index)
+    relatado = custo_mensal.notna()
+
+    posicao = np.arange(len(base))
+    posicao_ultimo_relato = pd.Series(np.where(relatado, posicao, np.nan), index=base.index).ffill()
+
+    base = base.copy()
+    base["custo_conab"] = custo_mensal.ffill().shift(defasagem)
+    base["meses_desde_relato_conab"] = pd.Series(posicao - posicao_ultimo_relato, index=base.index).shift(defasagem)
+    return base
 
 
 def montar_base_q1(
@@ -60,7 +81,8 @@ def montar_base_q1(
     - pegar a série geral do `produto` (saída de `aggregation.serie_geral`);
     - criar os lags (`criar_lags`) e o alvo (`criar_alvo`);
     - se `conab` for informado e o produto estiver em `config.PRODUTOS_CONAB`,
-      adicionar as variáveis da CONAB;
+      adicionar as variáveis da CONAB (filtrando `conab` para esse produto,
+      já que a tabela de `selecionar_series_conab` traz os 4 produtos juntos);
     - remover linhas com NaN nas entradas ou no alvo;
     - manter a coluna de mês, em ordem cronológica, para a divisão temporal.
     """
@@ -71,7 +93,7 @@ def montar_base_q1(
     base["alvo"] = criar_alvo(serie)
 
     if conab is not None and produto in config.PRODUTOS_CONAB:
-        base = adicionar_variaveis_conab(base, conab)
+        base = adicionar_variaveis_conab(base, conab[conab["produto"] == produto])
 
     base = base.reset_index().dropna()
     return base.sort_values("mes").reset_index(drop=True)
