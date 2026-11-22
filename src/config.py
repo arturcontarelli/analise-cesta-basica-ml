@@ -89,6 +89,25 @@ PRODUTOS_CONAB = [
     "Leite",
 ]
 
+# Subpasta de data/raw/conab/ de cada produto.
+PASTAS_CONAB = {
+    "Arroz": "arroz",
+    "Feijão": "feijao",
+    "Café": "cafe",
+    "Leite": "leite",
+}
+
+# Planilha e local escolhidos para cada produto (justificativa no notebook 03).
+SERIES_CONAB = {
+    "Arroz": {"planilha": "Arroz_Irrigado_Serie_Historica_2002-2026.xls", "regiao": "Pelotas-RS"},
+    "Feijão": {"planilha": "Feijao_1_Safra_Serie_Historica-1998-2026.xls", "regiao": "Taquarituba-SP"},
+    "Café": {"planilha": "seriehistoricacustoscafearabica2003a2025.xls", "regiao": "Franca-SP"},
+    "Leite": {"planilha": "Serie_Historica_Leite_SP_2014-2025.xls", "regiao": "Cunha-SP"},
+}
+
+# Tabela gerada pelo notebook 03, com todas as abas lidas da CONAB.
+ARQUIVO_CONAB_CONSOLIDADO = DIR_DADOS_PROCESSED / "conab_custos.csv"
+
 # ---------------------------------------------------------------------------
 # Q1 — previsão do preço do mês seguinte
 # ---------------------------------------------------------------------------
