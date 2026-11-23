@@ -1,0 +1,9 @@
+etapa,linhas,removidas
+base original,46264,0
+converter_tipos,46264,0
+padronizar_nomes_produtos,46264,0
+filtrar_produtos,42940,3324
+remover_registros_invalidos,42940,0
+remover_duplicatas,41258,1682
+filtrar_embalagem_padrao,41063,195
+remover_precos_atipicos,41029,34

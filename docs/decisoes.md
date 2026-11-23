@@ -2,7 +2,7 @@
 
 Este arquivo registra **o que** foi decidido e **por quê**, para que qualquer integrante do grupo entenda as escolhas antes de mexer no código. Se uma decisão mudar, atualize aqui com a data e o motivo; não apague a anterior, risque ou marque como substituída.
 
-Última revisão: 13/11/2026
+Última revisão: 23/11/2026
 
 ---
 
@@ -65,6 +65,8 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 - O limite exato de meses fica em `src/config.py` e deve ser justificado na exploração (gráfico de meses disponíveis por mercado).
 
 **Método:** cada mercado é representado pelo seu preço relativo em cada produto (acima ou abaixo da mediana geral). Usa-se K-Means, com k escolhido por cotovelo, silhueta e índice Xie-Beni (aulas 11 e 12). Avalia-se também se os grupos se mantêm estáveis no tempo: se o mercado barato de 2023 virou caro em 2025, a recomendação não se sustenta.
+
+**Atualização 23/11/2026 — corte fixado em 40 meses (notebook 02):** depois da limpeza (decisão 10), há um vão natural na contagem de meses por mercado: 25 mercados têm de 41 a 48 meses e o próximo tem 34 (depois 31, 28, 18, 14, e 21 estabelecimentos com 1 a 3 meses). Como nenhum mercado tem de 35 a 40 meses, **qualquer corte entre 35 e 41 seleciona os mesmos 25 mercados**, então o resultado não depende do valor exato. Os meses que faltam nesses 25 mercados se concentram a partir de ago/2025 (pior mês: fev/2026, com 13 dos 25 ausentes), o que deve ser considerado ao medir a estabilidade dos grupos no tempo. Gráficos: `reports/figures/02_meses_por_mercado.png` e `02_presenca_mercados.png`.
 
 **Limitação conhecida:** os mercados são anonimizados (SUP_01...). O trabalho mostra **se existem** mercados consistentemente baratos e **quanto isso vale em R$**, mas não diz qual é cada um.
 
@@ -137,3 +139,43 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 - **`src/config.py` como fonte única** da lista de produtos, nomes duplicados e caminhos: se uma decisão mudar, muda em um lugar só.
 - **Dados originais em `data/raw/` e nunca editados:** qualquer pessoa consegue refazer tudo do zero. Os dados gerados vão para `data/processed/`.
 - **Os dados ficam no repositório:** o enunciado exige entregar "código fonte e demais bases de dados utilizadas".
+
+---
+
+## 9. Formato da série geral: tabela longa
+
+**Decisão:** `aggregation.serie_geral` (parte A) devolve uma tabela no formato **longo**, com colunas `produto`, `mes`, `preco` e `n_mercados` (uma linha por combinação produto/mês), e não uma tabela larga (um produto por coluna).
+
+**Por quê:**
+- A Q1 (parte C) percorre os produtos em loop (`config.PRODUTOS`) para montar lags e treinar um modelo por produto; no formato longo isso é só `df[df.produto == produto]`, sem precisar de `pivot`.
+- Facilita juntar depois as variáveis da CONAB (decisão 5), que também vêm como série por período — concatenar duas tabelas longas por `mes` é mais direto do que alinhar colunas largas.
+- `n_mercados` (quantos mercados entraram na mediana daquele mês) é útil na exploração (notebook 02) e fica natural como mais uma coluna no formato longo.
+
+**Combinar com quem for implementar `aggregation.py`:** este é o contrato de dados entre a parte A e a parte C — se o formato mudar, as duas partes precisam ser avisadas.
+
+---
+
+## 10. Critérios de limpeza da base de preços (parte A)
+
+**Decisão:** além de unificar nomes e filtrar os 14 produtos (decisão 2), a limpeza (`src/cleaning.py`, notebook 01):
+1. **remove linhas duplicadas** (idênticas em mercado, dia, produto, marca, preço e quantidade), mantendo uma cópia;
+2. **mantém só a embalagem padrão** de cada produto (`config.EMBALAGEM_PADRAO`: a quantidade mais comum, ex.: manteiga 200 g, café 500 g, arroz 5 kg, óleo 900 ml);
+3. **remove preços atípicos:** PPK mais de 3× acima ou abaixo da mediana do mesmo produto no mesmo mês (`config.FATOR_PRECO_ATIPICO`).
+
+E o preço geral da Q1 (decisão 3) é calculado em **duas etapas**: primeiro a mediana de cada mercado no mês, depois a mediana entre os mercados.
+
+**Resultado:** de 42.940 linhas dos 14 produtos, ficam 41.029 (95,6%). Saem 1.682 duplicatas, 195 embalagens fora do padrão e 34 preços atípicos (tabela em `reports/tables/limpeza_resumo.csv`). A série geral fica com 14 produtos × 48 meses, sem mês vazio, com ~27 mercados por mediana.
+
+**Por quê:**
+- **Duplicatas:** uma mesma coleta registrada duas vezes faria o preço contar em dobro na mediana do mercado. Ex. real: manteiga no SUP_51 em fev/2025 tinha R$ 59,95, R$ 59,95, R$ 99,95 e R$ 99,95 (duplicata); a mediana caía de R$ 79,95 para R$ 59,95 sem a cópia. O efeito no preço geral é pequeno (11 de 672 valores mudam, no máximo 5%), mas na comparação entre mercados (Q3) distorce. Linhas da mesma marca com preço ou dia diferente **não** são removidas: são versões diferentes do produto (ex.: arroz tipo 1 e parboilizado) ou visitas diferentes no mês.
+- **Embalagem padrão:** cobre ~99% dos registros e garante que se compara sempre o mesmo item. Na manteiga, 97% é pote de 200 g; os potes de 250/500 g têm PPK bem menor e muitos são margarina (Qualy, Claybom, Doriana). Também elimina quantidades digitadas erradas (tomate com quantidade 20, manteiga com quantidade 3), que geram PPK errado mesmo com o preço certo.
+- **Preços atípicos com fator 3, comparando com o mesmo mês:** pega os valores impossíveis (banana a R$ 999/kg, pão e coxão mole a R$ 0,10/kg, arroz de 5 kg registrado com o preço do kg, manteiga de 200 g a R$ 3–4). Comparar com o mesmo mês evita confundir inflação ou safra com erro. Um fator 2 removeria 242 linhas; um fator 3,5 removeria 17, mas manteria erros claros (arroz e manteiga com razão de 0,30 a 0,32 da mediana).
+- **Mediana em duas etapas:** um mercado pode ter 8 marcas de arroz num mês e outro só 1. Na mediana direta, o primeiro pesaria 8 vezes mais. Em duas etapas, cada mercado vale um voto, que é o que a decisão 3 pretende ("mediana entre mercados"), e `n_mercados` conta mercados de verdade.
+
+**Alternativas descartadas:** regra do IQR por produto (sensível em meses com poucos registros); manter todas as embalagens (mistura manteiga com margarina); mediana direta de todos os registros (dá peso maior a mercados com mais marcas).
+
+**Limitações:**
+- A base não tem coluna de "versão do produto": duas versões da mesma marca com o mesmo preço, no mesmo dia, são indistinguíveis de uma duplicata e uma delas é removida. O efeito na mediana é desprezível.
+- O fator 3 também remove ~10 preços baixos de hortifrúti (banana a R$ 1,99–2,99, batata a R$ 1,95, tomate a R$ 2,99) que podem ser promoções reais, porque estão na mesma faixa (≈ 1/3 da mediana) dos erros de arroz e manteiga. Não há limite único que separe os dois grupos. O efeito na mediana entre mercados é desprezível; na Q3, esses mercados perdem alguns meses de promoção.
+- `Data_Coleta` está vazia de nov/2025 em diante. Nesse período, duas visitas no mesmo mês com o mesmo preço também parecem duplicata.
+- 5 dos 51 estabelecimentos (`ALT_26`, `ALT_28`, `ALT_35`, `ALT_48`, `ALT_49`) aparecem em um único mês cada. Ficam na Q1 (são coletas reais) e saem da Q3 pelo mínimo de meses (decisão 4).

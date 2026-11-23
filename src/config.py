@@ -89,6 +89,58 @@ PRODUTOS_CONAB = [
     "Leite",
 ]
 
+# Subpasta de data/raw/conab/ de cada produto.
+PASTAS_CONAB = {
+    "Arroz": "arroz",
+    "Feijão": "feijao",
+    "Café": "cafe",
+    "Leite": "leite",
+}
+
+# Planilha e local escolhidos para cada produto (justificativa no notebook 03).
+SERIES_CONAB = {
+    "Arroz": {"planilha": "Arroz_Irrigado_Serie_Historica_2002-2026.xls", "regiao": "Pelotas-RS"},
+    "Feijão": {"planilha": "Feijao_1_Safra_Serie_Historica-1998-2026.xls", "regiao": "Taquarituba-SP"},
+    "Café": {"planilha": "seriehistoricacustoscafearabica2003a2025.xls", "regiao": "Franca-SP"},
+    "Leite": {"planilha": "Serie_Historica_Leite_SP_2014-2025.xls", "regiao": "Cunha-SP"},
+}
+
+# Tabela gerada pelo notebook 03, com todas as abas lidas da CONAB.
+ARQUIVO_CONAB_CONSOLIDADO = DIR_DADOS_PROCESSED / "conab_custos.csv"
+
+# ---------------------------------------------------------------------------
+# Limpeza (parte A) — decisão 10
+# ---------------------------------------------------------------------------
+# Base limpa gerada pelo notebook 01 e lida pelas outras etapas.
+ARQUIVO_BASE_LIMPA = DIR_DADOS_PROCESSED / "icb_limpo.csv"
+
+# Decisão 10: embalagem padrão (campo Quantidade, em kg/L/unidade) de cada
+# produto. Só ela é mantida, para comparar sempre o mesmo item. Valores = a
+# quantidade mais comum de cada produto na base (cobre ~99% dos registros);
+# na manteiga, exclui potes de 250/500 g, muitos deles margarina.
+EMBALAGEM_PADRAO = {
+    "Café": 0.5,
+    "Arroz": 5.0,
+    "Feijão": 1.0,
+    "Leite": 1.0,
+    "Manteiga": 0.2,
+    "Farinha de Trigo": 1.0,
+    "Óleo": 0.9,
+    "Açúcar": 1.0,
+    "Tomate": 1.0,
+    "Batata": 1.0,
+    "Banana Prata": 1.0,
+    "Banana Nanica": 1.0,
+    "Carne Bovina Coxão Mole": 1.0,
+    "Pão Francês": 1.0,
+}
+
+# Decisão 10: um registro é preço atípico (provável erro de digitação) se o
+# PPK for mais de FATOR vezes maior ou menor que a mediana do mesmo produto no
+# mesmo mês. Ex.: banana a R$ 999/kg, pão a R$ 0,10/kg. Também remove alguns
+# preços de hortifrúti perto de 1/3 da mediana (ver limitações da decisão 10).
+FATOR_PRECO_ATIPICO = 3
+
 # ---------------------------------------------------------------------------
 # Q1 — previsão do preço do mês seguinte
 # ---------------------------------------------------------------------------
@@ -111,9 +163,9 @@ K_VIZINHOS_CANDIDATOS = [1, 3, 5, 7, 9]
 # ---------------------------------------------------------------------------
 # Q3 — agrupamento de mercados
 # ---------------------------------------------------------------------------
-# Decisão 4: só mercados com séries quase completas (~40 dos 48 meses ou mais).
-# Valor PROVISÓRIO: deve ser justificado no notebook 02 (gráfico de meses
-# disponíveis por mercado).
+# Decisão 4: só mercados com séries quase completas (40 dos 48 meses ou mais).
+# Justificado no notebook 02: nenhum mercado tem de 35 a 40 meses, então
+# qualquer corte entre 35 e 41 seleciona os mesmos 25 mercados.
 MIN_MESES_MERCADO = 40
 
 # Decisão 4/7: faixa de k testada no K-Means (cotovelo, silhueta, Xie-Beni).

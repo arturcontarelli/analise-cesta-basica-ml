@@ -21,7 +21,8 @@ def criar_lags(serie: pd.Series, n_lags: int) -> pd.DataFrame:
     Linhas iniciais sem histórico suficiente ficam com NaN e devem ser
     descartadas em `montar_base_q1`.
     """
-    raise NotImplementedError
+    colunas = {f"lag_{i}": serie.shift(i - 1) for i in range(1, n_lags + 1)}
+    return pd.DataFrame(colunas, index=serie.index)
 
 
 def criar_alvo(serie: pd.Series) -> pd.Series:
@@ -29,7 +30,7 @@ def criar_alvo(serie: pd.Series) -> pd.Series:
 
     Decisão 1 (Q1): prever o preço do mês seguinte de cada produto.
     """
-    raise NotImplementedError
+    return serie.shift(-1).rename("alvo")
 
 
 def adicionar_variaveis_conab(base: pd.DataFrame, conab: pd.DataFrame, defasagem: int = 0) -> pd.DataFrame:
@@ -63,4 +64,14 @@ def montar_base_q1(
     - remover linhas com NaN nas entradas ou no alvo;
     - manter a coluna de mês, em ordem cronológica, para a divisão temporal.
     """
-    raise NotImplementedError
+    serie = (
+        geral[geral["produto"] == produto].sort_values("mes").set_index("mes")["preco"]
+    )
+    base = criar_lags(serie, n_lags)
+    base["alvo"] = criar_alvo(serie)
+
+    if conab is not None and produto in config.PRODUTOS_CONAB:
+        base = adicionar_variaveis_conab(base, conab)
+
+    base = base.reset_index().dropna()
+    return base.sort_values("mes").reset_index(drop=True)
