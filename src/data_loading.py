@@ -50,7 +50,35 @@ def carregar_icb(caminho: Path = config.ARQUIVO_ICB) -> pd.DataFrame:
     Returns:
         DataFrame com uma linha por coleta de preço (~46 mil linhas).
     """
-    raise NotImplementedError
+    colunas = [
+        config.COL_MES,
+        config.COL_DATA_COLETA,
+        config.COL_MERCADO,
+        config.COL_PRODUTO,
+        config.COL_MARCA,
+        config.COL_PRECO,
+        config.COL_QUANTIDADE,
+        config.COL_PPK,
+    ]
+    df = pd.read_excel(caminho, engine="openpyxl")
+    faltando = set(colunas) - set(df.columns)
+    if faltando:
+        raise ValueError(f"Colunas ausentes na planilha: {sorted(faltando)}")
+    return df[colunas]
+
+
+def carregar_base_limpa(caminho: Path = config.ARQUIVO_BASE_LIMPA) -> pd.DataFrame:
+    """Lê a base limpa salva pelo notebook 01 (data/processed/icb_limpo.csv).
+
+    É o ponto de partida das etapas 02, 04 e 05: assim ninguém repete a
+    limpeza à mão. As datas voltam como datetime e a marca como texto.
+    """
+    return pd.read_csv(
+        caminho,
+        parse_dates=[config.COL_MES, config.COL_DATA_COLETA],
+        dtype={config.COL_MARCA: "string"},
+        encoding="utf-8",
+    )
 
 
 def listar_arquivos_conab(diretorio: Path = config.DIR_CONAB) -> list[Path]:
