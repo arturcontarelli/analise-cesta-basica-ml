@@ -98,12 +98,17 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 - **Baseline ingênuo:** o preço do mês seguinte é igual ao do mês atual. Serve de régua: se um modelo não erra menos que isso, ele não aprendeu nada útil.
 - **Regressão linear** (aula 09): usa os preços dos meses anteriores (lags) como entrada.
 - **KNN regressor** (aula 08): prevê pela média dos meses passados mais parecidos.
-- **Ensemble** (aula 10): média ou stacking dos modelos acima.
+- **Ensemble** (aula 10): média ponderada dos modelos acima (peso = 1 / erro de validação). Descartado stacking: com ~30 meses de treino por produto, um meta-modelo teria poucos exemplos para aprender uma combinação confiável.
 
-**Q1 — modelo extra: a decidir após os primeiros resultados.** Candidato principal: **Random Forest** (bagging de árvores; bagging é citado na aula 10).
+**Q1 — modelo extra, decidido em 23/11/2026: Random Forest** (bagging de árvores; bagging é citado na aula 10).
 - O enunciado incentiva "estudar e aprender outros modelos", mas um modelo extra **não é necessário** para responder a questão.
 - Ele faz sentido se os modelos da aula não forem suficientes. Por exemplo, a regressão linear só capta relações em linha reta, e a relação entre custo do produtor e preço pode não ser linear.
 - Regra: rodar primeiro os modelos da aula. Se já baterem o baseline com folga, o extra entra só como comparação ("testamos um modelo mais complexo e ele não melhorou", que também é conclusão). Se nenhum bater o baseline, o extra ajuda a descobrir se o problema é o modelo simples demais ou se os dados realmente não permitem prever. Princípio: **adicionar complexidade só quando os dados mostrarem necessidade.**
+- **Gatilho da decisão:** nem o ensemble bateu o baseline com folga (venceu em só 3 dos 14 produtos), então pela regra acima o extra virou necessário.
+- **Hiperparâmetros fixos** (não escolhidos por validação como o k do KNN): `max_depth=4`, `min_samples_leaf=2`, para não decorar o treino com só ~30 meses por produto.
+- **Resultado:** a Random Forest bateu o baseline em 3 dos 14 produtos (Banana Nanica, Manteiga, Óleo) — taxa parecida com a do ensemble, não uma melhora clara. Isso aponta para "o preço é difícil de prever com este histórico" mais do que para "os modelos simples eram fracos demais".
+- **Limitação conhecida:** Random Forest não extrapola além do maior preço visto no treino (previsão é uma média de valores de treino). Em produtos com tendência de alta, isso tende a subestimar o preço do teste por motivo estrutural, não por falta de padrão — ver diagnóstico de extrapolação no notebook 04.
+- **Comparação informal (não é modelo oficial):** testamos também Gradient Boosting, só para checar se boosting supera o bagging aqui. Resultado: pior que a Random Forest em 11 dos 14 produtos. Com poucos meses de treino por produto, o ajuste mais fino do boosting não compensou.
 
 **Q3:** K-Means (aula 11). Não precisa de modelo extra.
 
