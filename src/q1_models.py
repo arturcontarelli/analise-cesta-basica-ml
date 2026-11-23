@@ -6,16 +6,21 @@ Decisão 6 — modelos das aulas (obrigatórios):
 - KNN regressor (aula 08);
 - ensemble (aula 10): média PONDERADA dos três acima (ver `criar_ensemble`).
 
-Modelo extra (provavelmente Random Forest): a decidir DEPOIS dos primeiros
-resultados (decisão 6). Não implementar antes disso.
+Modelo extra (decisão 6, decidido após os primeiros resultados: nem o
+ensemble bateu o baseline com folga): Random Forest (`criar_random_forest`),
+porque bagging de árvores foi citado na aula 10 e captura relação não-linear
+entre o custo do produtor e o preço, que a regressão linear não pega.
+Gradient Boosting (`criar_gradient_boosting`) entra só como comparação
+informal — não foi dado na aula e não é o modelo extra oficial da decisão 6.
 
 Todos os modelos devem seguir a interface do scikit-learn (fit/predict), para
 serem avaliados da mesma forma em `src.evaluation`.
 """
 
 import numpy as np
+import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin, clone
-from sklearn.ensemble import VotingRegressor
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, VotingRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
@@ -81,6 +86,59 @@ def criar_knn(k: int):
         ("scaler", StandardScaler()),
         ("regressor", KNeighborsRegressor(n_neighbors=k)),
     ])
+
+
+def criar_random_forest() -> RandomForestRegressor:
+    """Cria a Random Forest (modelo extra, decisão 6).
+
+    Hiperparâmetros fixos (não escolhidos por validação, ao contrário do
+    `k` do KNN): `max_depth` e `min_samples_leaf` pequenos para não decorar
+    o treino, já que cada produto tem só ~30 meses de treino.
+
+    Limitação conhecida: árvores não extrapolam além do intervalo de preço
+    visto no treino. Numa série com tendência de alta, meses de teste com
+    preço recorde tendem a ser subestimados por esse motivo estrutural, não
+    por falta de padrão nos dados — ver `diagnostico_extrapolacao`.
+    """
+    return RandomForestRegressor(
+        n_estimators=200,
+        max_depth=4,
+        min_samples_leaf=2,
+        random_state=config.SEMENTE,
+    )
+
+
+def criar_gradient_boosting() -> GradientBoostingRegressor:
+    """Cria o Gradient Boosting só para comparação informal com a Random Forest.
+
+    NÃO é modelo "das aulas" (só bagging foi dado, não boosting) nem o modelo
+    extra oficial da decisão 6 — serve só para checar se boosting supera a
+    Random Forest nesses dados. Sofre da mesma limitação de extrapolação por
+    ser baseado em árvores (ver `criar_random_forest`).
+    """
+    return GradientBoostingRegressor(
+        n_estimators=200,
+        max_depth=3,
+        learning_rate=0.05,
+        min_samples_leaf=2,
+        random_state=config.SEMENTE,
+    )
+
+
+def diagnostico_extrapolacao(base: pd.DataFrame, meses_treino: int = config.MESES_TREINO) -> dict:
+    """Indica se o teste tem preços fora do intervalo visto no treino.
+
+    Random Forest e Gradient Boosting não extrapolam (decisão 6): se o
+    alvo máximo do teste for maior que o do treino, esses modelos tendem a
+    subestimar esses meses por limitação estrutural das árvores, não por
+    falta de padrão nos dados.
+    """
+    treino, teste = evaluation.divisao_temporal(base, meses_treino)
+    return {
+        "max_alvo_treino": treino["alvo"].max(),
+        "max_alvo_teste": teste["alvo"].max(),
+        "extrapola": teste["alvo"].max() > treino["alvo"].max(),
+    }
 
 
 def criar_ensemble(modelos: dict, pesos: dict[str, float]) -> VotingRegressor:
