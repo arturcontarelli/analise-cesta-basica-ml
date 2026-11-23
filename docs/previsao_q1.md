@@ -148,12 +148,17 @@ disponível realmente é "o preço continua parecido com o de hoje".
 
 No momento, o palpite simples, a linha de tendência e a comparação com
 situações parecidas já estão funcionando e sendo avaliados para todos os
-catorze produtos, junto com a escolha automática dos ajustes internos de
-cada um. A combinação das abordagens ainda depende de olhar esses primeiros
-resultados para decidir a melhor forma de juntar os modelos. A pista extra
-do custo do produtor também ainda está pendente, porque depende de uma
-fonte de dados que outra parte do grupo está preparando. E a própria série
-de preços usada até agora para testar que tudo funciona é uma versão
-provisória, fabricada artificialmente só para validar o processo — a versão
-final vai usar a série de preços real, que outra parte do grupo está
-preparando a partir da base original.
+catorze produtos, com a série de preços real (não mais fictícia), junto com
+a escolha automática dos ajustes internos de cada um. A combinação das
+abordagens ainda depende de olhar esses primeiros resultados para decidir a
+melhor forma de juntar os modelos. A pista extra do custo do produtor ainda
+está pendente, porque depende de uma fonte de dados que outra parte do
+grupo está preparando.
+
+Com a série real, o palpite simples (baseline) bate as outras abordagens em
+erro de valor (MAE) na maioria dos catorze produtos — sinal de que, com
+apenas 48 meses de histórico, pode não haver dados suficientes para um
+modelo mais complexo aprender um padrão melhor do que "o preço continua
+parecido com o de hoje". Essa é uma conclusão negativa válida (ver seção
+"Como se mede se valeu a pena") e deve ser reportada como tal no relatório,
+em vez de escondida.
