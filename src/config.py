@@ -109,6 +109,39 @@ SERIES_CONAB = {
 ARQUIVO_CONAB_CONSOLIDADO = DIR_DADOS_PROCESSED / "conab_custos.csv"
 
 # ---------------------------------------------------------------------------
+# Limpeza (parte A) — decisão 10
+# ---------------------------------------------------------------------------
+# Base limpa gerada pelo notebook 01 e lida pelas outras etapas.
+ARQUIVO_BASE_LIMPA = DIR_DADOS_PROCESSED / "icb_limpo.csv"
+
+# Decisão 10: embalagem padrão (campo Quantidade, em kg/L/unidade) de cada
+# produto. Só ela é mantida, para comparar sempre o mesmo item. Valores = a
+# quantidade mais comum de cada produto na base (cobre ~99% dos registros);
+# na manteiga, exclui potes de 250/500 g, muitos deles margarina.
+EMBALAGEM_PADRAO = {
+    "Café": 0.5,
+    "Arroz": 5.0,
+    "Feijão": 1.0,
+    "Leite": 1.0,
+    "Manteiga": 0.2,
+    "Farinha de Trigo": 1.0,
+    "Óleo": 0.9,
+    "Açúcar": 1.0,
+    "Tomate": 1.0,
+    "Batata": 1.0,
+    "Banana Prata": 1.0,
+    "Banana Nanica": 1.0,
+    "Carne Bovina Coxão Mole": 1.0,
+    "Pão Francês": 1.0,
+}
+
+# Decisão 10: um registro é preço atípico (provável erro de digitação) se o
+# PPK for mais de FATOR vezes maior ou menor que a mediana do mesmo produto no
+# mesmo mês. Ex.: banana a R$ 999/kg, pão a R$ 0,10/kg. Também remove alguns
+# preços de hortifrúti perto de 1/3 da mediana (ver limitações da decisão 10).
+FATOR_PRECO_ATIPICO = 3
+
+# ---------------------------------------------------------------------------
 # Q1 — previsão do preço do mês seguinte
 # ---------------------------------------------------------------------------
 # Decisão 3: preço geral = mediana do PPK entre mercados, por produto e mês.
@@ -130,9 +163,9 @@ K_VIZINHOS_CANDIDATOS = [1, 3, 5, 7, 9]
 # ---------------------------------------------------------------------------
 # Q3 — agrupamento de mercados
 # ---------------------------------------------------------------------------
-# Decisão 4: só mercados com séries quase completas (~40 dos 48 meses ou mais).
-# Valor PROVISÓRIO: deve ser justificado no notebook 02 (gráfico de meses
-# disponíveis por mercado).
+# Decisão 4: só mercados com séries quase completas (40 dos 48 meses ou mais).
+# Justificado no notebook 02: nenhum mercado tem de 35 a 40 meses, então
+# qualquer corte entre 35 e 41 seleciona os mesmos 25 mercados.
 MIN_MESES_MERCADO = 40
 
 # Decisão 4/7: faixa de k testada no K-Means (cotovelo, silhueta, Xie-Beni).
