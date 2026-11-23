@@ -20,7 +20,7 @@ O enunciado do professor está em [`docs/enunciado.md`](docs/enunciado.md).
 **Q1: é possível prever o preço do mês seguinte de cada produto melhor do que simplesmente repetir o preço atual?** (aprendizado supervisionado)
 - Usa o preço **geral**: a mediana do preço por kg/unidade (PPK) entre os mercados, por produto e mês.
 - Modelos: baseline ingênuo (repete o preço atual), regressão linear, KNN e ensemble. Um modelo extra (provavelmente Random Forest) será decidido depois dos primeiros resultados.
-- Custo do produtor (CONAB) como variável extra para Arroz, Feijão, Café e Leite.
+- Custo do produtor (CONAB): testado em Arroz, Feijão, Café e Leite, sem ganho consistente. Fica fora dos modelos finais e é usado na análise descritiva (decisão 5, notebook 03).
 - Avaliação com **divisão temporal** (nunca k-fold embaralhado): erro em valor (MAE, MSE) e acerto de direção sobe/não sobe (matriz de confusão, acurácia, precisão, revocação).
 
 **Q3: existem mercados consistentemente mais baratos? Quanto o consumidor economiza escolhendo bem onde comprar?** (aprendizado não supervisionado)
@@ -96,6 +96,6 @@ Rode os notebooks na ordem; cada um depende dos arquivos gerados pelos anteriore
 |---|---|---|
 | 1 | `notebooks/01_limpeza.ipynb` | Lê a base, unifica nomes de produto, filtra produtos e trata faltantes. Salva a base limpa em `data/processed/`. |
 | 2 | `notebooks/02_exploracao.ipynb` | Explora as séries, a cobertura por mercado e justifica o mínimo de meses por mercado. |
-| 3 | `notebooks/03_conab.ipynb` | Lê as planilhas da CONAB e verifica se dá para alinhar com os dados mensais (ou justifica o descarte). |
+| 3 | `notebooks/03_conab.ipynb` | Lê e audita as planilhas da CONAB, compara os modelos da Q1 com e sem elas e compara a variação anual de custo e preço. |
 | 4 | `notebooks/04_q1_previsao.ipynb` | Q1: modelos de previsão do preço do mês seguinte, avaliados com divisão temporal. |
 | 5 | `notebooks/05_q3_agrupamento.ipynb` | Q3: agrupamento de mercados com K-Means e estimativa da economia em R$. |
