@@ -90,6 +90,12 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 
 **Procedimento:** baixar primeiro um único arquivo (feijão) e checar frequência, região e unidade. Se não for possível alinhar com os dados mensais, a CONAB é descartada e o descarte é justificado no relatório (isso também conta como rigor metodológico).
 
+**Atualização (22/11/2026) — riscos resolvidos pela parte B, combinada com a parte C:**
+- **Região e unidade:** resolvidos. Cada produto usa uma planilha e região fixas (`config.SERIES_CONAB`), e o custo já sai normalizado em R$/kg (R$/l no leite) em `data_loading.carregar_conab`.
+- **Frequência:** confirmada como **anual**, não mensal (notebook 03) — só 3 ou 4 valores por produto na janela da base. Interpolar entre dois relatos usaria o relato do ano seguinte, o que é vazamento (decisão 7). Por isso `features.adicionar_variaveis_conab` **repete o último valor conhecido (forward-fill)** até o próximo relato, e nunca preenche para trás.
+- Para o modelo não tratar um custo "velho" como se fosse recente, foi adicionada a coluna `meses_desde_relato_conab` (quantos meses desde o último relato), em vez de decidir esse peso na mão.
+- Como a CONAB ainda é pouco informativa (poucos pontos por produto), ela entra como variável **opcional**: os modelos da Q1 devem ser comparados com e sem essas colunas, e se não houver ganho isso é reportado como conclusão negativa (decisão 6).
+
 ---
 
 ## 6. Modelos
