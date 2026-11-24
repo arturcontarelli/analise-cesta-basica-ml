@@ -193,31 +193,42 @@ def criar_ensemble(submodelos: dict[str, tuple[BaseEstimator, list[str]]], pesos
     ])
 
 
-def escolher_pesos_ensemble(base_treino, produto: str, n_lags: int, k: int) -> dict[str, float]:
+def escolher_pesos_ensemble(
+    base_treino,
+    produto: str,
+    n_lags_linear: int,
+    n_lags_knn: int,
+    k: int,
+) -> dict[str, float]:
     """Calcula os pesos do ensemble pelo inverso do erro de validação.
 
-    Usa os mesmos folds de validação de `escolher_hiperparametros`
-    (walk-forward dentro do treino, decisão 7), agora medindo o MAE de
-    baseline, regressão linear e KNN já com `n_lags`/`k` escolhidos. Peso de
-    cada modelo = 1 / (MAE médio de validação + `EPSILON_PESO`): quem erra
-    menos pesa mais; o epsilon evita divisão por zero se algum modelo acertar
-    a validação perfeitamente.
+    Cada submodelo é validado com o seu próprio `n_lags` (pendência 2 —
+    `docs/pendencias_parte_c.md`): a regressão linear usa `n_lags_linear`
+    (escolhido em `escolher_n_lags`) e o KNN usa `n_lags_knn`/`k` (escolhidos
+    juntos em `escolher_hiperparametros`). O baseline só olha `lag_1`, que
+    existe em qualquer uma das duas bases — usa-se a do KNN por conveniência.
+    Como `evaluation.divisao_treino_validacao` corta por data, os três são
+    comparados no mesmo período de validação mesmo com `n_lags` diferentes.
+
+    Peso de cada modelo = 1 / (MAE médio de validação + `EPSILON_PESO`):
+    quem erra menos pesa mais; o epsilon evita divisão por zero se algum
+    modelo acertar a validação perfeitamente.
 
     `EnsemblePonderado` já faz a média ponderada (via `np.average`) a partir
     dos pesos brutos, por isso não é preciso normalizar para somar 1 aqui.
     """
-    base = features.montar_base_q1(base_treino, produto, n_lags)
-    folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
-    colunas_entrada = [f"lag_{i}" for i in range(1, n_lags + 1)]
+    base_linear = features.montar_base_q1(base_treino, produto, n_lags_linear)
+    base_knn = features.montar_base_q1(base_treino, produto, n_lags_knn)
 
     candidatos = {
-        "baseline": BaselineIngenuo(),
-        "regressao_linear": criar_regressao_linear(),
-        "knn": criar_knn(k),
+        "baseline": (BaselineIngenuo(), base_knn, ["lag_1"]),
+        "regressao_linear": (criar_regressao_linear(), base_linear, [f"lag_{i}" for i in range(1, n_lags_linear + 1)]),
+        "knn": (criar_knn(k), base_knn, [f"lag_{i}" for i in range(1, n_lags_knn + 1)]),
     }
 
     pesos = {}
-    for nome, modelo_base in candidatos.items():
+    for nome, (modelo_base, base, colunas_entrada) in candidatos.items():
+        folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
         erros = []
         for treino_fold, validacao_fold in folds:
             modelo = clone(modelo_base)
@@ -258,3 +269,38 @@ def escolher_hiperparametros(base_treino, produto: str) -> dict:
                 melhor = {"n_lags": n_lags, "k": k, "mae": mae_medio}
 
     return {"n_lags": melhor["n_lags"], "k": melhor["k"]}
+
+
+def escolher_n_lags(base_treino, produto: str, criar_modelo) -> dict:
+    """Escolhe o número de lags que minimiza o erro de validação de um modelo
+    sem hiperparâmetro próprio (regressão linear, Random Forest, Gradient
+    Boosting).
+
+    Generaliza `escolher_hiperparametros` (que busca `n_lags` e `k` juntos,
+    só para o KNN) para dar a cada modelo seu próprio `n_lags` — pendência 2
+    (`docs/pendencias_parte_c.md`): o melhor `n_lags` para o KNN não é
+    necessariamente o melhor para os outros modelos.
+
+    `criar_modelo` é uma função sem argumentos que devolve uma instância nova
+    do modelo (ex. `criar_regressao_linear`, `criar_random_forest`). Nunca
+    olha o teste (decisão 7).
+    """
+    melhor = None
+
+    for n_lags in config.LAGS_CANDIDATOS:
+        base = features.montar_base_q1(base_treino, produto, n_lags)
+        folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
+        colunas_entrada = [f"lag_{i}" for i in range(1, n_lags + 1)]
+
+        erros = []
+        for treino_fold, validacao_fold in folds:
+            modelo = criar_modelo()
+            modelo.fit(treino_fold[colunas_entrada], treino_fold["alvo"])
+            previsto = modelo.predict(validacao_fold[colunas_entrada])
+            erros.append(evaluation.metricas_regressao(validacao_fold["alvo"], previsto)["MAE"])
+
+        mae_medio = sum(erros) / len(erros)
+        if melhor is None or mae_medio < melhor["mae"]:
+            melhor = {"n_lags": n_lags, "mae": mae_medio}
+
+    return {"n_lags": melhor["n_lags"]}

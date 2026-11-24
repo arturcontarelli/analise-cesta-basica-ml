@@ -19,6 +19,7 @@ from src.q1_models import (
     criar_regressao_linear,
     diagnostico_extrapolacao,
     escolher_hiperparametros,
+    escolher_n_lags,
     escolher_pesos_ensemble,
 )
 
@@ -135,7 +136,7 @@ def test_escolher_pesos_ensemble_pesa_mais_quem_erra_menos():
         "n_mercados": 27,
     })
 
-    pesos = escolher_pesos_ensemble(geral, "Cafe", n_lags=1, k=1)
+    pesos = escolher_pesos_ensemble(geral, "Cafe", n_lags_linear=1, n_lags_knn=1, k=1)
 
     assert set(pesos) == {"baseline", "regressao_linear", "knn"}
     # com tendência linear perfeita, a regressão linear deve errar bem menos
@@ -208,3 +209,43 @@ def test_escolher_hiperparametros_devolve_candidato_valido():
 
     assert resultado["n_lags"] in config.LAGS_CANDIDATOS
     assert resultado["k"] in config.K_VIZINHOS_CANDIDATOS
+
+
+def test_escolher_n_lags_devolve_candidato_valido():
+    mes = pd.period_range("2020-01", periods=36, freq="M")
+    rng = np.random.default_rng(0)
+    precos = 10 + np.cumsum(rng.normal(0.1, 0.3, size=36))
+    geral = pd.DataFrame({
+        "produto": ["Cafe"] * 36,
+        "mes": mes,
+        "preco": precos,
+        "n_mercados": 27,
+    })
+
+    resultado = escolher_n_lags(geral, "Cafe", criar_regressao_linear)
+
+    assert resultado["n_lags"] in config.LAGS_CANDIDATOS
+
+
+def test_escolher_n_lags_usa_criar_modelo_passado_e_nao_so_knn():
+    # Regressão: escolher_n_lags precisa criar o modelo a partir do
+    # `criar_modelo` recebido (não cair de volta para KNN por engano).
+    mes = pd.period_range("2020-01", periods=36, freq="M")
+    rng = np.random.default_rng(0)
+    precos = 10 + np.cumsum(rng.normal(0.1, 0.3, size=36))
+    geral = pd.DataFrame({
+        "produto": ["Cafe"] * 36,
+        "mes": mes,
+        "preco": precos,
+        "n_mercados": 27,
+    })
+
+    chamadas = []
+
+    def criar_modelo_espiao():
+        chamadas.append(1)
+        return criar_regressao_linear()
+
+    escolher_n_lags(geral, "Cafe", criar_modelo_espiao)
+
+    assert len(chamadas) > 0

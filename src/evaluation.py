@@ -48,18 +48,32 @@ def divisao_treino_validacao(
     treino: pd.DataFrame,
     meses_validacao: int = config.MESES_VALIDACAO,
 ) -> list[tuple[pd.DataFrame, pd.DataFrame]]:
-    """Gera folds de validação dentro do treino, via walk-forward aninhado.
+    """Gera folds de validação dentro do treino, por DATA (não por posição).
 
-    Decisão 7 (aula 10, slide 26) + decisão 2.2 (validação robusta):
-    hiperparâmetros (k do KNN, número de lags) são escolhidos pela média do
-    erro nesses folds, nunca olhando o teste.
+    Decisão 7 (aula 10, slide 26) + decisão 2.2 (validação robusta) +
+    pendência 2 (`docs/pendencias_parte_c.md`): hiperparâmetros (k do KNN,
+    número de lags) e pesos do ensemble são escolhidos pela média do erro
+    nesses folds, nunca olhando o teste.
 
-    Devolve uma LISTA (não um generator): `escolher_hiperparametros` precisa
-    percorrer os mesmos folds uma vez para cada combinação de hiperparâmetro
-    candidata, e um generator só pode ser percorrido uma única vez.
+    O corte usa `divisao_por_data`, não a posição da linha: como cada
+    candidato de `n_lags` perde uma quantidade diferente de linhas iniciais
+    em `features.montar_base_q1`, um corte por posição validaria cada
+    candidato (e cada submodelo do ensemble) num período diferente — o mesmo
+    problema do item 1, só que na validação em vez do teste final. Como
+    `features.montar_base_q1` só descarta a ÚLTIMA linha por falta de alvo
+    (a perda de linhas por `n_lags` é sempre no INÍCIO), o mês mais recente de
+    `treino` é sempre o mesmo independente de `n_lags`, então cortar pelos
+    últimos `meses_validacao` meses (por data) dá o mesmo período de
+    validação para qualquer candidato.
+
+    Devolve uma LISTA (não um generator): quem usa isso precisa percorrer os
+    mesmos folds mais de uma vez (ex. uma vez por combinação de
+    hiperparâmetro candidata), e um generator só pode ser percorrido uma
+    única vez.
     """
-    meses_treino_interno = len(treino) - meses_validacao
-    return list(walk_forward(treino, meses_treino_interno))
+    meses = sorted(treino["mes"].unique())
+    primeiro_mes_validacao = meses[-meses_validacao]
+    return list(divisao_por_data(treino, primeiro_mes_validacao))
 
 
 def walk_forward(
