@@ -6,7 +6,11 @@ As decisões são da parte C. As opções listadas são sugestões, não escolha
 
 ---
 
-## 1. O período de teste muda de produto para produto
+## 1. O período de teste muda de produto para produto — RESOLVIDO (24/11/2026)
+
+Escolhida a opção (a): corte por data. `evaluation.avaliar_modelo` agora recebe `primeiro_mes_teste` e usa `evaluation.divisao_por_data` (movida de `conab_analise.py`, que passou a importar de `evaluation`) em vez de `walk_forward`. O notebook 04 calcula `primeiro_mes_teste = meses_ordenados[config.MESES_TREINO]` uma vez e passa para cada produto. Os 14 produtos agora testam nos mesmos 11 meses (set/2025 a jul/2026); detalhes e por quê em `docs/decisoes.md`, decisão 7.
+
+Texto original do levantamento, mantido como histórico:
 
 **O que acontece:** `evaluation.walk_forward(base, config.MESES_TREINO)` separa treino e teste pela **posição da linha**, não pelo mês. Como `features.montar_base_q1` descarta as primeiras `n_lags − 1` linhas (sem histórico) e a última (sem alvo), sobram `48 − n_lags` linhas, e o teste fica com `12 − n_lags` meses.
 

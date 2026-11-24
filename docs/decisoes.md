@@ -171,6 +171,16 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 
 **Conclusão negativa também é resultado:** com só 48 meses, é possível que nenhum modelo bata o baseline. Se acontecer, a conclusão é que o preço desses itens é praticamente imprevisível no curto prazo e a melhor estimativa disponível é o preço atual. Isso deve ser reportado com justificativa, não escondido.
 
+**Atualização (24/11/2026) — corte do teste final por DATA, não por posição (resolve item 1 de `docs/pendencias_parte_c.md`):**
+
+`features.montar_base_q1` descarta as primeiras `n_lags − 1` linhas de cada produto (sem histórico de lag), então um corte por **posição da linha** (`walk_forward`, usado antes em `avaliar_modelo`) testava cada produto num período diferente — de 6 meses (produtos com `n_lags = 6`) a 11 meses (produtos com `n_lags = 1`).
+
+**Decisão:** `avaliar_modelo` agora corta por **data** (`evaluation.divisao_por_data`, a mesma função que a parte B já usava em `conab_analise.comparar_modelos_com_sem_conab`, só que movida de `conab_analise.py` para `evaluation.py` por ser lógica geral da Q1, não específica da CONAB). O notebook 04 calcula `primeiro_mes_teste = meses_ordenados[config.MESES_TREINO]` (o 37º mês da série completa) uma única vez e passa para todo produto.
+
+**Resultado:** os 14 produtos passam a ser testados exatamente nos mesmos 11 meses (set/2025 a jul/2026) — a frase "treinar até o mês 36 e testar nos meses 37 a 48" acima vale para todos, não só para os produtos de `n_lags = 1`. O treino ainda varia de tamanho entre produtos (de 31 a 36 meses, conforme o `n_lags`), mas sempre termina no mesmo mês; não há vazamento, pois `primeiro_mes_teste` é sempre posterior aos 36 meses usados por `escolher_hiperparametros`.
+
+`walk_forward` (corte por posição) continua existindo e em uso em `divisao_treino_validacao`, para a validação interna de hiperparâmetros de um único produto — ali não há comparação entre produtos, então a posição não causa o mesmo problema.
+
 ---
 
 ## 8. Ferramentas e organização
