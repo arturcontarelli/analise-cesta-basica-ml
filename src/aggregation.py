@@ -103,11 +103,28 @@ def selecionar_mercados(df: pd.DataFrame, min_meses: int = config.MIN_MESES_MERC
 def preco_relativo(series_mercado: pd.DataFrame, geral: pd.DataFrame) -> pd.DataFrame:
     """Calcula o preço relativo de cada mercado em relação ao preço geral.
 
-    Decisão 4: cada mercado é representado pelo seu preço relativo em cada
-    produto (acima ou abaixo da mediana geral). Ex.: razão
-    preco_mercado / preco_geral do mesmo produto e mês (1,10 = 10% mais caro).
+    Decisão 4 + decisão 11: `relativo = preco_mercado / preco_geral` do mesmo
+    produto e mês (1,10 = 10% mais caro que a mediana entre mercados; 0,90 =
+    10% mais barato). A razão, e não a diferença em R$, deixa produtos de
+    preços muito diferentes (café a ~R$ 70/kg, açúcar a ~R$ 5/kg) na mesma
+    escala, e já é uma porcentagem, então dispensa padronização no K-Means.
 
-    TODO: definir na etapa 05 se usar razão ou diferença percentual, e como
-    tratar meses em que o mercado não tem o produto.
+    Mês em que o mercado não tem o produto simplesmente não gera linha (nada é
+    preenchido aqui). O resumo por mercado fica em
+    `q3_clustering.montar_matriz_mercados`.
+
+    Args:
+        series_mercado: saída de `series_por_mercado` (normalmente só dos
+            mercados de `selecionar_mercados`).
+        geral: saída de `serie_geral`, calculada com TODOS os mercados.
+
+    Returns:
+        Tabela longa com `produto`, `mes`, `mercado`, `preco`, `preco_geral`
+        e `relativo`.
     """
-    raise NotImplementedError
+    referencia = geral[["produto", "mes", "preco"]].rename(columns={"preco": "preco_geral"})
+    relativo = series_mercado[["produto", "mes", "mercado", "preco"]].merge(
+        referencia, on=["produto", "mes"], how="left", validate="many_to_one"
+    )
+    relativo["relativo"] = relativo["preco"] / relativo["preco_geral"]
+    return relativo.sort_values(["produto", "mes", "mercado"]).reset_index(drop=True)

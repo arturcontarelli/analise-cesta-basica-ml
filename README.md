@@ -24,8 +24,9 @@ O enunciado do professor está em [`docs/enunciado.md`](docs/enunciado.md).
 - Avaliação com **divisão temporal** (nunca k-fold embaralhado): erro em valor (MAE, MSE) e acerto de direção sobe/não sobe (matriz de confusão, acurácia, precisão, revocação).
 
 **Q3: existem mercados consistentemente mais baratos? Quanto o consumidor economiza escolhendo bem onde comprar?** (aprendizado não supervisionado)
-- Usa os dados **por mercado**, só de mercados com cerca de 40 dos 48 meses ou mais.
+- Usa os dados **por mercado**, só dos 25 mercados com 40 dos 48 meses ou mais, e o preço relativo de cada um (preço ÷ mediana entre mercados). Pão Francês fica fora da Q3 (decisão 11).
 - K-Means, com k escolhido por cotovelo, silhueta e índice Xie-Beni, e verificação da estabilidade dos grupos no tempo.
+- Economia em R$ calculada com a Cesta Básica do DIEESE. Detalhes em [`docs/agrupamento_q3.md`](docs/agrupamento_q3.md).
 
 Produtos analisados: Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomate, Batata, Banana Prata, Banana Nanica, Carne Bovina Coxão Mole e Pão Francês.
 

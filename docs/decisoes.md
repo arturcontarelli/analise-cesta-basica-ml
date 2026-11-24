@@ -224,3 +224,17 @@ E o preço geral da Q1 (decisão 3) é calculado em **duas etapas**: primeiro a 
 - O fator 3 também remove ~10 preços baixos de hortifrúti (banana a R$ 1,99–2,99, batata a R$ 1,95, tomate a R$ 2,99) que podem ser promoções reais, porque estão na mesma faixa (≈ 1/3 da mediana) dos erros de arroz e manteiga. Não há limite único que separe os dois grupos. O efeito na mediana entre mercados é desprezível; na Q3, esses mercados perdem alguns meses de promoção.
 - `Data_Coleta` está vazia de nov/2025 em diante. Nesse período, duas visitas no mesmo mês com o mesmo preço também parecem duplicata.
 - 5 dos 51 estabelecimentos (`ALT_26`, `ALT_28`, `ALT_35`, `ALT_48`, `ALT_49`) aparecem em um único mês cada. Ficam na Q1 (são coletas reais) e saem da Q3 pelo mínimo de meses (decisão 4).
+
+---
+
+## 11. Q3: produtos, preço relativo, k e cesta em R$ (parte D)
+
+**Decisão (24/11/2026):** detalhes, números e fontes em [`agrupamento_q3.md`](agrupamento_q3.md).
+- **Pão Francês fora da Q3** (`config.PRODUTOS_FORA_Q3`): 4 dos 25 mercados quase não têm o produto (SUP_36 e SUP_46 nunca; SUP_01 e SUP_47 em 1 mês), e são justamente os mais baratos. Preencher o valor os puxaria para a média; tirá-los apagaria a resposta. É o produto em que os mercados menos diferem (desvio de 5,7%). A Q1 continua com os 14 produtos.
+- **Preço relativo** = preço do mercado ÷ preço geral do mesmo produto e mês; cada mercado é resumido pela mediana desse valor. Nada é imputado.
+- **Sem padronização** antes do K-Means: as colunas já estão na mesma unidade (proporção da mediana), então a distância é diferença de preço de verdade.
+- **k = 3** (`config.K_ESCOLHIDO_Q3`): cotovelo e Xie-Beni apontam 3, a silhueta empata entre 2, 3 e 4, e k = 3 tem o melhor pior caso de estabilidade no tempo.
+- **Economia em R$ com a Cesta Básica do DIEESE, Região 1** (`config.CESTA_DIEESE`; Decreto-Lei 399/1938; DIEESE, metodologia de ago/2025), a preços dos últimos 12 meses. Banana: 90 unidades, metade prata (1,2 kg/dúzia) e metade nanica (1,8 kg/dúzia). Óleo: 750 g ÷ 0,92 kg/L.
+- **Estabilidade:** 4 períodos de 12 meses (set a ago), comparados por ARI, % no mesmo grupo e correlação de Spearman da ordem dos mercados.
+
+**Por quê:** cada item tem a justificativa em `agrupamento_q3.md`. Em resumo: não inventar valores nos mercados mais baratos, manter a distância interpretável como diferença de preço e usar a cesta de referência do país, que coincide com os 14 produtos do projeto.

@@ -179,6 +179,60 @@ MIN_MESES_MERCADO = 40
 K_CLUSTERS_MIN = 2
 K_CLUSTERS_MAX = 8
 
+# Decisão 11: k escolhido no notebook 05. Cotovelo e Xie-Beni apontam k = 3, a
+# silhueta fica praticamente empatada entre k = 2, 3 e 4 (0,370 a 0,377) e
+# k = 3 tem o melhor pior caso de estabilidade entre os períodos de 12 meses.
+K_ESCOLHIDO_Q3 = 3
+
+# Decisão 11: Pão Francês fica fora da Q3. 4 dos 25 mercados quase não têm o
+# produto (SUP_36 e SUP_46 nunca, SUP_01 e SUP_47 em 1 mês), e são justamente
+# os mais baratos; preencher o valor os puxaria para a média. A Q1 continua
+# com os 14 produtos. Justificativa completa em docs/agrupamento_q3.md.
+PRODUTOS_FORA_Q3 = ["Pão Francês"]
+PRODUTOS_Q3 = [p for p in PRODUTOS if p not in PRODUTOS_FORA_Q3]
+
+# Decisão 11: cesta usada para converter o preço relativo em R$. Quantidades
+# mensais da Cesta Básica do DIEESE, Região 1 (inclui SP), Decreto-Lei
+# 399/1938 (DIEESE, "Metodologia da Pesquisa Nacional da Cesta Básica de
+# Alimentos", ago/2025). Valores na unidade do PPK (kg ou litro).
+# - Banana: o DIEESE usa 90 unidades (7,5 dúzias) e converte o preço do kg em
+#   preço da dúzia multiplicando por 1,2 (prata) e 1,8 (nanica). Premissa
+#   nossa: metade das dúzias de cada variedade.
+# - Óleo: o DIEESE usa 750 g; o PPK do óleo é R$/litro, então convertemos pela
+#   densidade do óleo de soja (~0,92 kg/L).
+DUZIAS_BANANA = 90 / 12
+KG_POR_DUZIA_BANANA = {"Banana Prata": 1.2, "Banana Nanica": 1.8}
+DENSIDADE_OLEO_KG_POR_L = 0.92
+CESTA_DIEESE = {
+    "Carne Bovina Coxão Mole": 6.0,
+    "Leite": 7.5,
+    "Feijão": 4.5,
+    "Arroz": 3.0,
+    "Farinha de Trigo": 1.5,
+    "Batata": 6.0,
+    "Tomate": 9.0,
+    "Pão Francês": 6.0,
+    "Café": 0.6,
+    "Açúcar": 3.0,
+    "Óleo": 0.75 / DENSIDADE_OLEO_KG_POR_L,
+    "Manteiga": 0.75,
+    "Banana Prata": DUZIAS_BANANA / 2 * KG_POR_DUZIA_BANANA["Banana Prata"],
+    "Banana Nanica": DUZIAS_BANANA / 2 * KG_POR_DUZIA_BANANA["Banana Nanica"],
+}
+
+# Decisão 11: o preço de referência da cesta em R$ é a média do preço geral
+# nos últimos MESES_PRECO_CESTA meses da base (preço "de hoje").
+MESES_PRECO_CESTA = 12
+
+# Decisão 11: períodos de 12 meses (set a ago) usados para medir a
+# estabilidade dos grupos no tempo. Todos os 25 mercados aparecem nos 4.
+PERIODOS_ESTABILIDADE = [
+    ("2022-09", "2023-08"),
+    ("2023-09", "2024-08"),
+    ("2024-09", "2025-08"),
+    ("2025-09", "2026-08"),
+]
+
 # ---------------------------------------------------------------------------
 # Reprodutibilidade
 # ---------------------------------------------------------------------------
