@@ -116,14 +116,13 @@ Cinco abordagens diferentes são comparadas lado a lado para cada produto:
   para comparação, sem fazer parte da avaliação oficial.
 
 Além do histórico de preços, para quatro dos catorze produtos — os que têm
-uma ligação mais direta com a agricultura (grãos e leite) — também entra
-como pista adicional uma estimativa de quanto custa para o produtor
+uma ligação mais direta com a agricultura (grãos e leite) — também foi
+testada como pista adicional uma estimativa de quanto custa para o produtor
 fabricar aquele item. A ideia por trás disso é que um aumento no custo de
-produção tende a chegar, com algum atraso, no preço final de mercado —
-então esse custo de produção pode ajudar a antecipar uma alta de preço antes
-mesmo dela aparecer na prateleira. Essa pista vem de uma fonte de dados
-diferente da pesquisa de preços original, e ainda está em processo de
-avaliação sobre se encaixa bem no formato mensal usado no resto do trabalho.
+produção tende a chegar, com algum atraso, no preço final de mercado. Como
+essa fonte traz só um valor por ano e a comparação com e sem ela não mostrou
+ganho consistente sobre o palpite simples, essa pista **não entra nos modelos
+finais**. O teste e a justificativa estão no notebook 03 e na decisão 5.
 
 ## Como se mede se valeu a pena
 
@@ -156,8 +155,8 @@ No momento, o palpite simples, a linha de tendência, a comparação com
 situações parecidas e a combinação das três (ensemble) já estão funcionando
 e sendo avaliados para todos os catorze produtos, com a série de preços real
 (não mais fictícia), junto com a escolha automática dos ajustes internos de
-cada um. A pista extra do custo do produtor ainda está pendente, porque
-depende de uma fonte de dados que outra parte do grupo está preparando.
+cada um. A pista extra do custo do produtor já foi testada e ficou fora
+dos modelos finais (decisão 5, notebook 03).
 
 A combinação foi feita por **média ponderada** (peso de cada modelo = 1 /
 erro de validação, calculado sem olhar o teste), e não por stacking: com

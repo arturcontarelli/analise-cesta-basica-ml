@@ -80,8 +80,9 @@ MAPA_NOMES_PRODUTOS = {
     "Carne Pernil": "Carne Suína Pernil",
 }
 
-# Decisão 5: custo do produtor (CONAB) como variável extra da Q1, apenas para
-# estes 4 produtos agrícolas "brutos".
+# Decisão 5: produtos agrícolas "brutos" com custo do produtor (CONAB). Depois
+# da comparação com e sem CONAB (notebook 03), ela fica fora dos modelos finais
+# da Q1 e é usada só na comparação e na análise descritiva.
 PRODUTOS_CONAB = [
     "Arroz",
     "Feijão",
@@ -107,6 +108,12 @@ SERIES_CONAB = {
 
 # Tabela gerada pelo notebook 03, com todas as abas lidas da CONAB.
 ARQUIVO_CONAB_CONSOLIDADO = DIR_DADOS_PROCESSED / "conab_custos.csv"
+
+# Defasagens (em meses) testadas na comparação dos modelos com e sem CONAB.
+DEFASAGENS_CONAB = [0, 3]
+
+# Produtos com cobertura completa, usados na comparação anual de custo e preço.
+PRODUTOS_CONAB_DESCRITIVA = ["Arroz", "Feijão"]
 
 # ---------------------------------------------------------------------------
 # Limpeza (parte A) — decisão 10
