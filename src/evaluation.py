@@ -84,6 +84,24 @@ def walk_forward(
         yield base.iloc[idx_treino], base.iloc[idx_teste]
 
 
+def divisao_por_data(
+    base: pd.DataFrame,
+    primeiro_mes_teste: pd.Period,
+) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
+    """Gera walk-forward com corte por DATA do mês, e não pela posição da linha.
+
+    Decisão 7 (revisão do item 1 de `docs/pendencias_parte_c.md`): usar aqui
+    em vez de `walk_forward` sempre que o resultado for comparado entre
+    produtos diferentes. Produtos com `n_lags` maior perdem mais linhas
+    iniciais em `features.montar_base_q1`, então um corte por posição (como
+    `walk_forward` faz) testaria cada produto num período diferente. Com
+    corte por data, todo produto é testado exatamente nos mesmos meses.
+    """
+    base = base.sort_values("mes").reset_index(drop=True)
+    for mes in base.loc[base["mes"] >= primeiro_mes_teste, "mes"]:
+        yield base[base["mes"] < mes], base[base["mes"] == mes]
+
+
 def metricas_regressao(y_real: np.ndarray, y_previsto: np.ndarray) -> dict[str, float]:
     """Calcula o erro em valor: MAE e MSE (aulas 09 e 10).
 
@@ -134,8 +152,18 @@ def metricas_direcao(
     }
 
 
-def avaliar_modelo(modelo, base: pd.DataFrame, colunas_entrada: list[str], coluna_alvo: str) -> pd.DataFrame:
-    """Avalia um modelo com divisão temporal / walk-forward e reúne as métricas.
+def avaliar_modelo(
+    modelo,
+    base: pd.DataFrame,
+    colunas_entrada: list[str],
+    coluna_alvo: str,
+    primeiro_mes_teste: pd.Period,
+) -> pd.DataFrame:
+    """Avalia um modelo com walk-forward cortado por DATA e reúne as métricas.
+
+    `primeiro_mes_teste` (ver `divisao_por_data`) garante que todo produto é
+    testado nos mesmos meses, independente de quantas linhas `n_lags` consumiu
+    no início da série do produto.
 
     Deve treinar e prever respeitando a ordem do tempo, e devolver uma tabela
     com MAE, MSE e as métricas de direção, pronta para comparar com o baseline
@@ -145,7 +173,7 @@ def avaliar_modelo(modelo, base: pd.DataFrame, colunas_entrada: list[str], colun
     y_previstos = []
     precos_atuais = []
 
-    for treino_fold, teste_fold in walk_forward(base):
+    for treino_fold, teste_fold in divisao_por_data(base, primeiro_mes_teste):
         modelo.fit(treino_fold[colunas_entrada], treino_fold[coluna_alvo])
         previsto = modelo.predict(teste_fold[colunas_entrada])
 

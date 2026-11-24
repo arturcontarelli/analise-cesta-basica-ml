@@ -4,8 +4,6 @@ Decisão 5: a CONAB fica fora dos modelos finais da Q1. Este módulo guarda a
 evidência dessa escolha, reutilizando as funções da Q1 sem alterá-las.
 """
 
-from collections.abc import Iterator
-
 import numpy as np
 import pandas as pd
 
@@ -14,24 +12,10 @@ from src import config, evaluation, features, q1_models
 COLUNAS_CONAB = ["custo_conab", "meses_desde_relato_conab"]
 
 
-def divisao_por_data(
-    base: pd.DataFrame,
-    primeiro_mes_teste: pd.Period,
-) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
-    """Gera walk-forward com corte por data, e não pela posição da linha.
-
-    Assim, bases com quantidades diferentes de linhas iniciais são testadas
-    exatamente nos mesmos meses.
-    """
-    base = base.sort_values("mes").reset_index(drop=True)
-    for mes in base.loc[base["mes"] >= primeiro_mes_teste, "mes"]:
-        yield base[base["mes"] < mes], base[base["mes"] == mes]
-
-
 def _avaliar(modelo, base: pd.DataFrame, colunas: list[str], primeiro_mes_teste: pd.Period) -> dict:
-    """Avalia um modelo no walk-forward por data."""
+    """Avalia um modelo no walk-forward por data (`evaluation.divisao_por_data`)."""
     reais, previstos, atuais = [], [], []
-    for treino, teste in divisao_por_data(base, primeiro_mes_teste):
+    for treino, teste in evaluation.divisao_por_data(base, primeiro_mes_teste):
         modelo.fit(treino[colunas], treino["alvo"])
         previstos.append(modelo.predict(teste[colunas])[0])
         reais.append(teste["alvo"].iloc[0])
