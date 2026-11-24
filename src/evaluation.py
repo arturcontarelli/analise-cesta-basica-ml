@@ -133,9 +133,6 @@ def direcao(preco_atual: np.ndarray, preco_referencia: np.ndarray) -> np.ndarray
     Decisão 7: cada previsão vira "sobe / não sobe" comparando com o preço
     atual. Aplicar tanto ao preço real do mês seguinte quanto ao previsto.
 
-    TODO: decidir se igualdade conta como "não sobe" (padrão sugerido) e se
-    haverá tolerância mínima para considerar alta.
-
     Decisão: igualdade conta como "não sobe" (`>` estrito, não `>=`); sem
     tolerância mínima por enquanto (qualquer aumento conta como "sobe"). Se a
     exploração mostrar muita variação de ruído perto de zero, reavaliar.

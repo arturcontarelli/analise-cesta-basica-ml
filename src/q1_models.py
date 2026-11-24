@@ -8,10 +8,11 @@ Decisão 6 — modelos das aulas (obrigatórios):
 
 Modelo extra (decisão 6, decidido após os primeiros resultados: nem o
 ensemble bateu o baseline com folga): Random Forest (`criar_random_forest`),
-porque bagging de árvores foi citado na aula 10 e captura relação não-linear
-entre o custo do produtor e o preço, que a regressão linear não pega.
-Gradient Boosting (`criar_gradient_boosting`) entra só como comparação
-informal — não foi dado na aula e não é o modelo extra oficial da decisão 6.
+porque bagging de árvores foi citado na aula 10 e, diferente dos modelos das
+aulas, consegue captar relações entre os lags e o preço que não sejam uma
+linha reta. Gradient Boosting (`criar_gradient_boosting`) entra só como
+comparação informal — não foi dado na aula e não é o modelo extra oficial da
+decisão 6.
 
 Todos os modelos devem seguir a interface do scikit-learn (fit/predict), para
 serem avaliados da mesma forma em `src.evaluation`.
@@ -128,15 +129,22 @@ def criar_gradient_boosting() -> GradientBoostingRegressor:
     )
 
 
-def diagnostico_extrapolacao(base: pd.DataFrame, meses_treino: int = config.MESES_TREINO) -> dict:
+def diagnostico_extrapolacao(base: pd.DataFrame, primeiro_mes_teste: pd.Period) -> dict:
     """Indica se o teste tem preços fora do intervalo visto no treino.
 
     Random Forest e Gradient Boosting não extrapolam (decisão 6): se o
     alvo máximo do teste for maior que o do treino, esses modelos tendem a
     subestimar esses meses por limitação estrutural das árvores, não por
     falta de padrão nos dados.
+
+    Corte por DATA, não por posição (decisão 7, atualização — pendência 1):
+    `primeiro_mes_teste` deve ser o mesmo usado em `evaluation.avaliar_modelo`,
+    para que o treino/teste aqui correspondam exatamente ao período avaliado
+    (a posição variaria com `n_lags`, que agora é próprio de cada modelo —
+    pendência 2).
     """
-    treino, teste = evaluation.divisao_temporal(base, meses_treino)
+    treino = base[base["mes"] < primeiro_mes_teste]
+    teste = base[base["mes"] >= primeiro_mes_teste]
     return {
         "max_alvo_treino": treino["alvo"].max(),
         "max_alvo_teste": teste["alvo"].max(),

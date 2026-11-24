@@ -176,7 +176,7 @@ def test_diagnostico_extrapolacao_detecta_teste_acima_do_treino():
         "alvo": np.arange(48, dtype=float),  # tendência de alta: teste > treino
     })
 
-    diagnostico = diagnostico_extrapolacao(base, meses_treino=36)
+    diagnostico = diagnostico_extrapolacao(base, primeiro_mes_teste=pd.Period("2023-01", freq="M"))
 
     assert diagnostico["max_alvo_treino"] == 35.0
     assert diagnostico["max_alvo_teste"] == 47.0
@@ -189,7 +189,7 @@ def test_diagnostico_extrapolacao_nao_marca_serie_estavel():
         "alvo": [10.0] * 48,  # preço constante: teste nunca passa do treino
     })
 
-    diagnostico = diagnostico_extrapolacao(base, meses_treino=36)
+    diagnostico = diagnostico_extrapolacao(base, primeiro_mes_teste=pd.Period("2023-01", freq="M"))
 
     assert not diagnostico["extrapola"]
 
