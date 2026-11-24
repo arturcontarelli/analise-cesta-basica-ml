@@ -12,11 +12,9 @@ from src.evaluation import (
     avaliar_modelo,
     direcao,
     divisao_por_data,
-    divisao_temporal,
     divisao_treino_validacao,
     metricas_direcao,
     metricas_regressao,
-    walk_forward,
 )
 from src.q1_models import BaselineIngenuo
 
@@ -24,33 +22,6 @@ from src.q1_models import BaselineIngenuo
 def _base_exemplo(n_meses: int = 10) -> pd.DataFrame:
     mes = pd.period_range("2024-01", periods=n_meses, freq="M")
     return pd.DataFrame({"mes": mes, "preco": range(n_meses)})
-
-
-def test_divisao_temporal_respeita_ordem_cronologica():
-    base = _base_exemplo(10)
-    treino, teste = divisao_temporal(base, meses_treino=7)
-
-    assert len(treino) == 7
-    assert len(teste) == 3
-    assert treino["mes"].max() < teste["mes"].min()
-
-
-def test_walk_forward_gera_um_mes_de_teste_por_fold():
-    base = _base_exemplo(10)
-    folds = list(walk_forward(base, meses_treino_inicial=7))
-
-    assert len(folds) == 3  # 10 meses - 7 de treino inicial
-    for treino_fold, teste_fold in folds:
-        assert len(teste_fold) == 1
-        assert treino_fold["mes"].max() < teste_fold["mes"].min()
-
-
-def test_walk_forward_janela_de_treino_expande_a_cada_fold():
-    base = _base_exemplo(10)
-    folds = list(walk_forward(base, meses_treino_inicial=7))
-
-    tamanhos_treino = [len(treino_fold) for treino_fold, _ in folds]
-    assert tamanhos_treino == [7, 8, 9]
 
 
 def test_divisao_por_data_nunca_treina_com_o_futuro():

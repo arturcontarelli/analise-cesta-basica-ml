@@ -22,26 +22,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-from sklearn.model_selection import TimeSeriesSplit
-
 from src import config
-
-
-def divisao_temporal(
-    base: pd.DataFrame,
-    meses_treino: int = config.MESES_TREINO,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Separa a base em treino (primeiros meses) e teste (meses seguintes).
-
-    Decisão 7: ex. treinar até o mês 36 e testar nos meses 37 a 48.
-    Deve verificar que a base está em ordem cronológica e que nenhum mês
-    do teste é anterior a um mês do treino.
-    """
-    base = base.sort_values("mes").reset_index(drop=True)
-    treino = base.iloc[:meses_treino]
-    teste = base.iloc[meses_treino:]
-    assert treino["mes"].max() < teste["mes"].min()
-    return treino, teste
 
 
 def divisao_treino_validacao(
@@ -76,40 +57,19 @@ def divisao_treino_validacao(
     return list(divisao_por_data(treino, primeiro_mes_validacao))
 
 
-def walk_forward(
-    base: pd.DataFrame,
-    meses_treino_inicial: int = config.MESES_TREINO,
-) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
-    """Gera divisões em janela que avança mês a mês (walk-forward).
-
-    Decisão 7: a cada passo, treina com todos os meses até t e testa no
-    mês t+1; depois avança um mês. Deve produzir (treino, teste) com o teste
-    sempre de um único mês, posterior a todo o treino.
-
-    Implementação via `TimeSeriesSplit(n_splits=len(base) - meses_treino_inicial,
-    test_size=1)`: com `test_size=1`, cada fold de teste é 1 mês; com esse
-    `n_splits`, o primeiro fold já começa com exatamente `meses_treino_inicial`
-    meses de treino (o resto é o walk-forward natural do sklearn).
-    """
-    base = base.sort_values("mes").reset_index(drop=True)
-    n_splits = len(base) - meses_treino_inicial
-    splitter = TimeSeriesSplit(n_splits=n_splits, test_size=1)
-    for idx_treino, idx_teste in splitter.split(base):
-        yield base.iloc[idx_treino], base.iloc[idx_teste]
-
-
 def divisao_por_data(
     base: pd.DataFrame,
     primeiro_mes_teste: pd.Period,
 ) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
     """Gera walk-forward com corte por DATA do mês, e não pela posição da linha.
 
-    Decisão 7 (revisão do item 1 de `docs/pendencias_parte_c.md`): usar aqui
-    em vez de `walk_forward` sempre que o resultado for comparado entre
-    produtos diferentes. Produtos com `n_lags` maior perdem mais linhas
-    iniciais em `features.montar_base_q1`, então um corte por posição (como
-    `walk_forward` faz) testaria cada produto num período diferente. Com
-    corte por data, todo produto é testado exatamente nos mesmos meses.
+    Decisão 7 (revisão do item 1 de `docs/pendencias_parte_c.md`): um corte
+    por posição testaria cada produto num período diferente, porque produtos
+    com `n_lags` maior perdem mais linhas iniciais em
+    `features.montar_base_q1`. Com corte por data, todo produto é testado
+    exatamente nos mesmos meses — por isso é o walk-forward usado em todo o
+    pipeline (teste final em `avaliar_modelo`, validação em
+    `divisao_treino_validacao`).
     """
     base = base.sort_values("mes").reset_index(drop=True)
     for mes in base.loc[base["mes"] >= primeiro_mes_teste, "mes"]:
