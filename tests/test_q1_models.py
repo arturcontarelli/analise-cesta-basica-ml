@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, VotingRegressor
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from src import config
 from src.q1_models import (
     BaselineIngenuo,
+    EnsemblePonderado,
     criar_ensemble,
     criar_gradient_boosting,
     criar_knn,
@@ -66,27 +67,34 @@ def test_criar_knn_e_um_pipeline_com_scaler_e_k_vizinhos():
     assert modelo.named_steps["regressor"].n_neighbors == 3
 
 
-def test_criar_ensemble_e_um_voting_regressor_com_pesos():
-    modelos = {
-        "baseline": BaselineIngenuo(),
-        "regressao_linear": criar_regressao_linear(),
-        "knn": criar_knn(k=3),
+def test_criar_ensemble_e_um_ensemble_ponderado_com_pesos():
+    submodelos = {
+        "baseline": (BaselineIngenuo(), ["lag_1"]),
+        "regressao_linear": (criar_regressao_linear(), ["lag_1", "lag_2"]),
+        "knn": (criar_knn(k=3), ["lag_1", "lag_2", "lag_3"]),
     }
     pesos = {"baseline": 2.0, "regressao_linear": 1.0, "knn": 0.5}
 
-    ensemble = criar_ensemble(modelos, pesos)
+    ensemble = criar_ensemble(submodelos, pesos)
 
-    assert isinstance(ensemble, VotingRegressor)
-    assert [nome for nome, _ in ensemble.estimators] == ["baseline", "regressao_linear", "knn"]
-    assert ensemble.weights == [2.0, 1.0, 0.5]
+    assert isinstance(ensemble, EnsemblePonderado)
+    nomes = [nome for nome, _, _, _ in ensemble.submodelos]
+    colunas = [colunas for _, _, colunas, _ in ensemble.submodelos]
+    pesos_guardados = [peso for _, _, _, peso in ensemble.submodelos]
+    assert nomes == ["baseline", "regressao_linear", "knn"]
+    assert colunas == [["lag_1"], ["lag_1", "lag_2"], ["lag_1", "lag_2", "lag_3"]]
+    assert pesos_guardados == [2.0, 1.0, 0.5]
 
 
 def test_criar_ensemble_preve_a_media_ponderada():
     X = pd.DataFrame({"lag_1": [10.0, 20.0, 30.0, 40.0]})
     y = X["lag_1"] + 1  # relação perfeitamente linear
 
-    modelos = {"baseline": BaselineIngenuo(), "regressao_linear": criar_regressao_linear()}
-    ensemble = criar_ensemble(modelos, {"baseline": 1.0, "regressao_linear": 1.0}).fit(X, y)
+    submodelos = {
+        "baseline": (BaselineIngenuo(), ["lag_1"]),
+        "regressao_linear": (criar_regressao_linear(), ["lag_1"]),
+    }
+    ensemble = criar_ensemble(submodelos, {"baseline": 1.0, "regressao_linear": 1.0}).fit(X, y)
 
     previsto = ensemble.predict(X)
     erro_ensemble = np.abs(previsto - y.to_numpy()).mean()
@@ -95,6 +103,25 @@ def test_criar_ensemble_preve_a_media_ponderada():
     # a regressão linear acerta quase perfeitamente aqui; a média com o
     # baseline (que ignora a tendência) deve errar menos que o baseline só.
     assert erro_ensemble < erro_baseline
+
+
+def test_criar_ensemble_aceita_colunas_diferentes_por_submodelo():
+    # Regressão: o EnsemblePonderado existe para permitir que cada submodelo
+    # use seu próprio n_lags (pendência 2) — o VotingRegressor não aceitava isso.
+    X = pd.DataFrame({
+        "lag_1": [10.0, 20.0, 30.0, 40.0],
+        "lag_2": [9.0, 10.0, 20.0, 30.0],
+        "lag_3": [8.0, 9.0, 10.0, 20.0],
+    })
+    y = X["lag_1"] + 1
+
+    submodelos = {
+        "baseline": (BaselineIngenuo(), ["lag_1"]),
+        "knn": (criar_knn(k=1), ["lag_1", "lag_2", "lag_3"]),
+    }
+    ensemble = criar_ensemble(submodelos, {"baseline": 1.0, "knn": 1.0}).fit(X, y)
+
+    assert ensemble.predict(X).shape == (4,)
 
 
 def test_escolher_pesos_ensemble_pesa_mais_quem_erra_menos():

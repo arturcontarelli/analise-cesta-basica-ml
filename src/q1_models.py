@@ -20,7 +20,7 @@ serem avaliados da mesma forma em `src.evaluation`.
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin, clone
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, VotingRegressor
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
@@ -42,8 +42,11 @@ class BaselineIngenuo(RegressorMixin, BaseEstimator):
     `RegressorMixin` precisa vir ANTES de `BaseEstimator` na herança: a partir
     do scikit-learn 1.6, `is_regressor()` usa o sistema de tags
     (`__sklearn_tags__`), e a ordem errada faz o MRO usar os tags genéricos de
-    `BaseEstimator` em vez dos de `RegressorMixin`. Sem isso, `VotingRegressor`
-    (usado no ensemble) rejeita este modelo com "should be a regressor".
+    `BaseEstimator` em vez dos de `RegressorMixin`. O ensemble (`EnsemblePonderado`)
+    não depende mais disso — ele chama `fit`/`predict` direto, sem passar por
+    `VotingRegressor` —, mas a ordem certa ainda é convenção do scikit-learn e
+    evita surpresa se este modelo for usado em outra ferramenta da biblioteca
+    (ex.: `cross_val_score`, `GridSearchCV`) que confira a tag.
 
     `predict` deve devolver a coluna do preço atual (`lag_1`, gerada em
     `features.criar_lags`). `fit` não aprende nada, só guarda o índice dessa
@@ -141,7 +144,36 @@ def diagnostico_extrapolacao(base: pd.DataFrame, meses_treino: int = config.MESE
     }
 
 
-def criar_ensemble(modelos: dict, pesos: dict[str, float]) -> VotingRegressor:
+class EnsemblePonderado(RegressorMixin, BaseEstimator):
+    """Ensemble como média PONDERADA (decisão 6), com um conjunto de colunas
+    de entrada próprio por submodelo.
+
+    Substitui o `VotingRegressor`: ele exige uma única matriz `X`
+    compartilhada entre todos os submodelos, o que obrigava baseline,
+    regressão linear e KNN a usar sempre o mesmo `n_lags` (pendência 2 —
+    `docs/pendencias_parte_c.md`). Aqui cada submodelo é
+    `(nome, modelo, colunas, peso)`, então cada um pode ser validado e usar
+    seu próprio `n_lags`, e o `X` passado a `fit`/`predict` só precisa conter
+    a união das colunas de todos os submodelos.
+    """
+
+    def __init__(self, submodelos: list[tuple[str, BaseEstimator, list[str], float]]):
+        self.submodelos = submodelos
+
+    def fit(self, X, y):
+        self.ajustados_ = [
+            (clone(modelo).fit(X[colunas], y), colunas, peso)
+            for _, modelo, colunas, peso in self.submodelos
+        ]
+        return self
+
+    def predict(self, X) -> np.ndarray:
+        previsoes = np.array([modelo.predict(X[colunas]) for modelo, colunas, _ in self.ajustados_])
+        pesos = np.array([peso for _, _, peso in self.ajustados_])
+        return np.average(previsoes, axis=0, weights=pesos)
+
+
+def criar_ensemble(submodelos: dict[str, tuple[BaseEstimator, list[str]]], pesos: dict[str, float]) -> EnsemblePonderado:
     """Cria o ensemble (aula 10) como média PONDERADA dos modelos.
 
     Decisão 6: optou-se por média ponderada em vez de stacking. Nos primeiros
@@ -151,14 +183,14 @@ def criar_ensemble(modelos: dict, pesos: dict[str, float]) -> VotingRegressor:
     treinado com poucos meses por produto (risco de instabilidade maior do
     que o ganho esperado).
 
+    `submodelos` mapeia nome -> (modelo, colunas de entrada desse modelo).
     Os pesos vêm de `escolher_pesos_ensemble` (inverso do MAE de validação),
     calculados sem olhar o teste (decisão 7).
     """
-    nomes = list(modelos.keys())
-    return VotingRegressor(
-        estimators=[(nome, modelos[nome]) for nome in nomes],
-        weights=[pesos[nome] for nome in nomes],
-    )
+    nomes = list(submodelos.keys())
+    return EnsemblePonderado([
+        (nome, submodelos[nome][0], submodelos[nome][1], pesos[nome]) for nome in nomes
+    ])
 
 
 def escolher_pesos_ensemble(base_treino, produto: str, n_lags: int, k: int) -> dict[str, float]:
@@ -171,8 +203,8 @@ def escolher_pesos_ensemble(base_treino, produto: str, n_lags: int, k: int) -> d
     menos pesa mais; o epsilon evita divisão por zero se algum modelo acertar
     a validação perfeitamente.
 
-    `VotingRegressor` já faz a média ponderada a partir dos pesos brutos, por
-    isso não é preciso normalizar para somar 1 aqui.
+    `EnsemblePonderado` já faz a média ponderada (via `np.average`) a partir
+    dos pesos brutos, por isso não é preciso normalizar para somar 1 aqui.
     """
     base = features.montar_base_q1(base_treino, produto, n_lags)
     folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
