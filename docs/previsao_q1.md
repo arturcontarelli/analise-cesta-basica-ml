@@ -156,34 +156,45 @@ situações parecidas e a combinação das três (ensemble) já estão funcionan
 e sendo avaliados para todos os catorze produtos, com a série de preços real
 (não mais fictícia), junto com a escolha automática dos ajustes internos de
 cada um. A pista extra do custo do produtor já foi testada e ficou fora
-dos modelos finais (decisão 5, notebook 03).
+dos modelos finais (decisão 5, notebook 03). Todos os produtos são testados
+nos mesmos 11 meses (decisão 7, atualização), e cada modelo escolhe seu
+próprio número de meses de histórico em vez de reaproveitar o que foi
+escolhido para a comparação com situações parecidas (decisão 6, atualização).
 
 A combinação foi feita por **média ponderada** (peso de cada modelo = 1 /
 erro de validação, calculado sem olhar o teste), e não por stacking: com
 pouco mais de dois anos de treino por produto, um modelo que aprendesse a
-combinar os outros teria poucos exemplos para aprender algo confiável. Ainda
-assim, o ensemble só bateu o palpite simples em 3 dos 14 produtos (Manteiga,
-Óleo, Batata) — nos outros, mesmo dando mais peso ao modelo mais confiável na
-validação, misturar com os modelos mais fracos piorou o erro em relação ao
-palpite simples sozinho. Isso é consistente com o ponto abaixo: quando o
-palpite simples já é difícil de bater, qualquer combinação que inclua os
-modelos mais fracos tende a herdar parte do erro deles.
+combinar os outros teria poucos exemplos para aprender algo confiável. O
+ensemble bate o palpite simples em **4 dos 14 produtos** (Banana Nanica,
+Batata, Manteiga, Óleo) — nos outros, mesmo dando mais peso ao modelo mais
+confiável na validação, misturar com os modelos mais fracos piorou o erro em
+relação ao palpite simples sozinho. Isso é consistente com o ponto abaixo:
+quando o palpite simples já é difícil de bater, qualquer combinação que
+inclua os modelos mais fracos tende a herdar parte do erro deles.
+
+A **linha de tendência** (regressão linear) é a que mais se aproxima do
+palpite simples: bate em **6 dos 14 produtos** (Arroz, Banana Nanica,
+Batata, Farinha de Trigo, Manteiga, Tomate) — melhor taxa entre todas as
+abordagens testadas, desde que passou a escolher seu próprio número de
+meses de histórico em vez do que foi escolhido para a comparação com
+situações parecidas.
 
 Com o ensemble também não batendo o palpite simples na maioria dos
 produtos, o modelo extra (decisão 6) foi decidido: **Random Forest**, com
 `max_depth` e `min_samples_leaf` pequenos para não decorar o treino (só
 ~30 meses por produto). Resultado: a Random Forest bate o palpite simples em
-**3 dos 14 produtos** (Banana Nanica, Manteiga, Óleo) — uma taxa parecida
-com a do ensemble, não uma melhora clara. Isso aponta mais para "o preço
-desses produtos é difícil de prever com este histórico" do que para "os
-modelos mais simples eram fracos demais".
+**5 dos 14 produtos** (Arroz, Açúcar, Banana Nanica, Manteiga, Óleo) — taxa
+parecida com a do ensemble, não uma melhora clara sobre a linha de
+tendência. Isso aponta mais para "o preço desses produtos é difícil de
+prever com este histórico" do que para "os modelos mais simples eram fracos
+demais".
 
 Testamos também Gradient Boosting só por comparação (não é modelo oficial
-da decisão 6): ele ficou pior que a Random Forest em 11 dos 14 produtos, só
-superando em 3 (Batata, Leite, Pão Francês). Com poucos meses de treino por
-produto, o ajuste mais fino do boosting (taxa de aprendizado, várias
-árvores em sequência) não parece compensar — reforça que o fator limitante
-aqui é a quantidade de dados, não o tipo de modelo.
+da decisão 6): ele ficou pior que a Random Forest em 9 dos 14 produtos, só
+superando em 5 (Açúcar, Batata, Leite, Manteiga, Óleo). Com poucos meses de
+treino por produto, o ajuste mais fino do boosting (taxa de aprendizado,
+várias árvores em sequência) não parece compensar — reforça que o fator
+limitante aqui é a quantidade de dados, não o tipo de modelo.
 
 Uma limitação conhecida de ambos, por serem baseados em árvores: eles não
 extrapolam além do maior preço visto no treino. Em produtos com tendência de
@@ -198,4 +209,6 @@ apenas 48 meses de histórico, pode não haver dados suficientes para um
 modelo mais complexo aprender um padrão melhor do que "o preço continua
 parecido com o de hoje". Essa é uma conclusão negativa válida (ver seção
 "Como se mede se valeu a pena") e deve ser reportada como tal no relatório,
-em vez de escondida.
+em vez de escondida. Tabelas completas em `reports/tables/04_q1_resultados.csv`
+e `04_q1_extrapolacao.csv`; figura comparando o erro de cada modelo com o do
+palpite simples em `reports/figures/04_mae_relativo_baseline.png`.

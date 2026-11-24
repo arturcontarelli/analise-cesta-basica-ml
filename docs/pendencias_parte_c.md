@@ -36,7 +36,11 @@ Texto original do levantamento, mantido como histórico:
 
 ---
 
-## 2. O número de lags é escolhido só pelo KNN
+## 2. O número de lags é escolhido só pelo KNN — RESOLVIDO (24/11/2026)
+
+Escolhida a opção (a): `n_lags` separado por modelo. `q1_models.escolher_n_lags` generaliza `escolher_hiperparametros` (sem o `k`) para regressão linear, Random Forest e Gradient Boosting; o KNN continua escolhendo `n_lags`/`k` juntos. O ensemble (`VotingRegressor`) foi substituído por `q1_models.EnsemblePonderado`, que aceita colunas diferentes por submodelo. `evaluation.divisao_treino_validacao` passou a cortar por data (não por posição), para que a comparação de erro entre `n_lags` candidatos (e entre submodelos do ensemble) seja sempre no mesmo período. Detalhes em `docs/decisoes.md`, decisão 6.
+
+Texto original do levantamento, mantido como histórico:
 
 **O que acontece:** `q1_models.escolher_hiperparametros` busca `n_lags` e `k` juntos, minimizando o erro de validação **do KNN**. Esse `n_lags` é usado depois também pela regressão linear, pela Random Forest e pelo ensemble.
 
@@ -50,7 +54,11 @@ Texto original do levantamento, mantido como histórico:
 
 ---
 
-## 3. O notebook 04 não salva resultados nem tem conclusão
+## 3. O notebook 04 não salva resultados nem tem conclusão — RESOLVIDO (24/11/2026)
+
+O notebook 04 agora salva `reports/tables/04_q1_resultados.csv` e `04_q1_extrapolacao.csv`, tem uma seção "Quem bate o baseline" (contagem de produtos por modelo), uma figura (`reports/figures/04_mae_relativo_baseline.png`) comparando o MAE de cada modelo com o do baseline por produto, e uma célula de conclusão. Os números mudaram em relação ao levantamento original porque os itens 1 e 2 (corte por data, `n_lags` por modelo) foram resolvidos antes: com `n_lags` próprio, a regressão linear passou a bater o baseline em 6 de 14 produtos (era 3 de 14, empatada com os outros). `docs/previsao_q1.md` foi atualizado com os números novos.
+
+Texto original do levantamento, mantido como histórico:
 
 **O que acontece:** o notebook mostra a tabela de 84 linhas (14 produtos × 6 modelos) e a tabela de extrapolação, mas:
 - não salva nada em `reports/tables/` nem em `reports/figures/`;
@@ -76,7 +84,15 @@ Os números de ensemble e Random Forest batem com o que está em `docs/decisoes.
 
 ---
 
-## 4. Textos desatualizados
+## 4. Textos desatualizados — RESOLVIDO (24/11/2026)
+
+Os 3 TODOs foram removidos (`config.py`, `evaluation.py`) e a justificativa da Random Forest em `src/q1_models.py` e `docs/decisoes.md` (decisão 6) não cita mais a CONAB. A linha "testar nos meses 37 a 48" já estava coberta pela atualização do item 1.
+
+Uma correção foi além de texto: `q1_models.diagnostico_extrapolacao` ainda cortava treino/teste por **posição** (`evaluation.divisao_temporal`), o mesmo bug do item 1, só que no diagnóstico de extrapolação — com `n_lags` por modelo (item 2), isso podia fazer o diagnóstico olhar para um período diferente do teste real. Passou a cortar por `primeiro_mes_teste` (data), igual ao resto do pipeline.
+
+**Atualização:** `evaluation.walk_forward` e `evaluation.divisao_temporal` foram removidas (confirmado: nenhum uso em código de produção, só nos próprios testes diretos, que foram removidos junto). `divisao_por_data` cobre os dois casos — é o walk-forward usado em todo o pipeline hoje.
+
+Texto original do levantamento, mantido como histórico:
 
 Pequenas correções, todas da parte C:
 
@@ -90,7 +106,13 @@ Pequenas correções, todas da parte C:
 
 ---
 
-## 5. Revisar a integração
+## 5. Revisar a integração — RESOLVIDO (24/11/2026)
+
+Revisados os dois textos abaixo: ambos continuam dizendo o que a parte C quer, nenhuma mudança foi necessária.
+- `docs/previsao_q1.md`: a frase "já foi testada e ficou fora dos modelos finais (decisão 5, notebook 03)" segue presente e exata, preservada durante a reescrita da seção no item 3.
+- `notebooks/04_q1_previsao.ipynb`, primeira célula: a linha "entradas" também não mudou e continua correta.
+
+Texto original do levantamento, mantido como histórico:
 
 Na integração houve conflito em dois textos da parte C, resolvidos assim:
 - `docs/previsao_q1.md`, seção "Onde isso está agora": mantido o texto da `dev` (ensemble, Random Forest, série real). Só a frase da CONAB foi trocada para "já foi testada e ficou fora dos modelos finais (decisão 5, notebook 03)".
