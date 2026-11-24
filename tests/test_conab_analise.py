@@ -8,7 +8,6 @@ from src import config
 from src.conab_analise import (
     comparar_modelos_com_sem_conab,
     comparar_variacao_anual,
-    divisao_por_data,
 )
 
 
@@ -31,16 +30,6 @@ def conab():
         "periodo": pd.PeriodIndex(["2023-03", "2024-03", "2025-03", "2026-03"], freq="M"),
         "custo": [1.0, 1.1, 1.05, 1.2],
     })
-
-
-def test_divisao_por_data_nunca_treina_com_o_futuro():
-    meses = pd.period_range("2024-01", periods=6, freq="M")
-    base = pd.DataFrame({"mes": meses, "lag_1": range(6)}).iloc[1:]
-
-    divisoes = list(divisao_por_data(base, pd.Period("2024-04", freq="M")))
-
-    assert [teste["mes"].iloc[0] for _, teste in divisoes] == list(meses[3:])
-    assert all(treino["mes"].max() < teste["mes"].min() for treino, teste in divisoes)
 
 
 def test_comparacao_usa_mesmos_meses_e_treino(geral, conab):

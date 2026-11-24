@@ -154,13 +154,14 @@ FATOR_PRECO_ATIPICO = 3
 # Decisão 3: preço geral = mediana do PPK entre mercados, por produto e mês.
 ESTATISTICA_PRECO_GERAL = "median"
 
-# Decisão 7: divisão temporal. Exemplo do documento: treinar até o mês 36 e
-# testar nos meses 37 a 48. TODO: confirmar na etapa 04.
+# Decisão 7: divisão temporal por data (`evaluation.divisao_por_data`).
+# Quantidade de meses iniciais usados para escolher hiperparâmetros e treinar;
+# o teste final usa os meses seguintes (ver notebook 04, `primeiro_mes_teste`).
 MESES_TREINO = 36
 
 # Decisão 7: hiperparâmetros (k do KNN, número de lags) escolhidos numa parte
 # separada do treino. Quantidade de meses finais do treino usados como
-# validação. TODO: definir na etapa 04.
+# validação (`evaluation.divisao_treino_validacao`, corte por data).
 MESES_VALIDACAO = 6
 
 # Decisão 6/7: valores candidatos a testar na validação (provisórios).

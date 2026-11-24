@@ -11,11 +11,10 @@ import pytest
 from src.evaluation import (
     avaliar_modelo,
     direcao,
-    divisao_temporal,
+    divisao_por_data,
     divisao_treino_validacao,
     metricas_direcao,
     metricas_regressao,
-    walk_forward,
 )
 from src.q1_models import BaselineIngenuo
 
@@ -25,31 +24,28 @@ def _base_exemplo(n_meses: int = 10) -> pd.DataFrame:
     return pd.DataFrame({"mes": mes, "preco": range(n_meses)})
 
 
-def test_divisao_temporal_respeita_ordem_cronologica():
-    base = _base_exemplo(10)
-    treino, teste = divisao_temporal(base, meses_treino=7)
+def test_divisao_por_data_nunca_treina_com_o_futuro():
+    meses = pd.period_range("2024-01", periods=6, freq="M")
+    base = pd.DataFrame({"mes": meses, "lag_1": range(6)}).iloc[1:]
 
-    assert len(treino) == 7
-    assert len(teste) == 3
-    assert treino["mes"].max() < teste["mes"].min()
+    divisoes = list(divisao_por_data(base, pd.Period("2024-04", freq="M")))
 
-
-def test_walk_forward_gera_um_mes_de_teste_por_fold():
-    base = _base_exemplo(10)
-    folds = list(walk_forward(base, meses_treino_inicial=7))
-
-    assert len(folds) == 3  # 10 meses - 7 de treino inicial
-    for treino_fold, teste_fold in folds:
-        assert len(teste_fold) == 1
-        assert treino_fold["mes"].max() < teste_fold["mes"].min()
+    assert [teste["mes"].iloc[0] for _, teste in divisoes] == list(meses[3:])
+    assert all(treino["mes"].max() < teste["mes"].min() for treino, teste in divisoes)
 
 
-def test_walk_forward_janela_de_treino_expande_a_cada_fold():
-    base = _base_exemplo(10)
-    folds = list(walk_forward(base, meses_treino_inicial=7))
+def test_divisao_por_data_testa_mesmo_periodo_com_treinos_de_tamanhos_diferentes():
+    # Simula dois produtos com n_lags diferentes: um perde mais linhas
+    # iniciais que o outro, mas ambos devem ser testados nos mesmos meses.
+    meses = pd.period_range("2024-01", periods=6, freq="M")
+    produto_n_lags_1 = pd.DataFrame({"mes": meses, "lag_1": range(6)})
+    produto_n_lags_3 = pd.DataFrame({"mes": meses, "lag_1": range(6)}).iloc[2:]
 
-    tamanhos_treino = [len(treino_fold) for treino_fold, _ in folds]
-    assert tamanhos_treino == [7, 8, 9]
+    primeiro_mes_teste = pd.Period("2024-04", freq="M")
+    meses_teste_1 = [teste["mes"].iloc[0] for _, teste in divisao_por_data(produto_n_lags_1, primeiro_mes_teste)]
+    meses_teste_3 = [teste["mes"].iloc[0] for _, teste in divisao_por_data(produto_n_lags_3, primeiro_mes_teste)]
+
+    assert meses_teste_1 == meses_teste_3 == list(meses[3:])
 
 
 def test_divisao_treino_validacao_devolve_lista_nao_generator():
@@ -112,7 +108,8 @@ def test_avaliar_modelo_com_baseline():
         "alvo": np.arange(1, n + 1, dtype=float),
     })
 
-    resultado = avaliar_modelo(BaselineIngenuo(), base, ["lag_1", "lag_2"], "alvo")
+    primeiro_mes_teste = pd.Period("2023-01", freq="M")  # mesmo corte do antigo meses_treino_inicial=36
+    resultado = avaliar_modelo(BaselineIngenuo(), base, ["lag_1", "lag_2"], "alvo", primeiro_mes_teste)
 
     assert set(resultado.columns) == {
         "MAE", "MSE", "matriz_confusao", "acuracia", "precisao", "revocacao",

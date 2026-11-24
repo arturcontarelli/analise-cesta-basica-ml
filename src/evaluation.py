@@ -22,66 +22,58 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-from sklearn.model_selection import TimeSeriesSplit
-
 from src import config
-
-
-def divisao_temporal(
-    base: pd.DataFrame,
-    meses_treino: int = config.MESES_TREINO,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Separa a base em treino (primeiros meses) e teste (meses seguintes).
-
-    Decisão 7: ex. treinar até o mês 36 e testar nos meses 37 a 48.
-    Deve verificar que a base está em ordem cronológica e que nenhum mês
-    do teste é anterior a um mês do treino.
-    """
-    base = base.sort_values("mes").reset_index(drop=True)
-    treino = base.iloc[:meses_treino]
-    teste = base.iloc[meses_treino:]
-    assert treino["mes"].max() < teste["mes"].min()
-    return treino, teste
 
 
 def divisao_treino_validacao(
     treino: pd.DataFrame,
     meses_validacao: int = config.MESES_VALIDACAO,
 ) -> list[tuple[pd.DataFrame, pd.DataFrame]]:
-    """Gera folds de validação dentro do treino, via walk-forward aninhado.
+    """Gera folds de validação dentro do treino, por DATA (não por posição).
 
-    Decisão 7 (aula 10, slide 26) + decisão 2.2 (validação robusta):
-    hiperparâmetros (k do KNN, número de lags) são escolhidos pela média do
-    erro nesses folds, nunca olhando o teste.
+    Decisão 7 (aula 10, slide 26) + decisão 2.2 (validação robusta) +
+    pendência 2 (`docs/pendencias_parte_c.md`): hiperparâmetros (k do KNN,
+    número de lags) e pesos do ensemble são escolhidos pela média do erro
+    nesses folds, nunca olhando o teste.
 
-    Devolve uma LISTA (não um generator): `escolher_hiperparametros` precisa
-    percorrer os mesmos folds uma vez para cada combinação de hiperparâmetro
-    candidata, e um generator só pode ser percorrido uma única vez.
+    O corte usa `divisao_por_data`, não a posição da linha: como cada
+    candidato de `n_lags` perde uma quantidade diferente de linhas iniciais
+    em `features.montar_base_q1`, um corte por posição validaria cada
+    candidato (e cada submodelo do ensemble) num período diferente — o mesmo
+    problema do item 1, só que na validação em vez do teste final. Como
+    `features.montar_base_q1` só descarta a ÚLTIMA linha por falta de alvo
+    (a perda de linhas por `n_lags` é sempre no INÍCIO), o mês mais recente de
+    `treino` é sempre o mesmo independente de `n_lags`, então cortar pelos
+    últimos `meses_validacao` meses (por data) dá o mesmo período de
+    validação para qualquer candidato.
+
+    Devolve uma LISTA (não um generator): quem usa isso precisa percorrer os
+    mesmos folds mais de uma vez (ex. uma vez por combinação de
+    hiperparâmetro candidata), e um generator só pode ser percorrido uma
+    única vez.
     """
-    meses_treino_interno = len(treino) - meses_validacao
-    return list(walk_forward(treino, meses_treino_interno))
+    meses = sorted(treino["mes"].unique())
+    primeiro_mes_validacao = meses[-meses_validacao]
+    return list(divisao_por_data(treino, primeiro_mes_validacao))
 
 
-def walk_forward(
+def divisao_por_data(
     base: pd.DataFrame,
-    meses_treino_inicial: int = config.MESES_TREINO,
+    primeiro_mes_teste: pd.Period,
 ) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
-    """Gera divisões em janela que avança mês a mês (walk-forward).
+    """Gera walk-forward com corte por DATA do mês, e não pela posição da linha.
 
-    Decisão 7: a cada passo, treina com todos os meses até t e testa no
-    mês t+1; depois avança um mês. Deve produzir (treino, teste) com o teste
-    sempre de um único mês, posterior a todo o treino.
-
-    Implementação via `TimeSeriesSplit(n_splits=len(base) - meses_treino_inicial,
-    test_size=1)`: com `test_size=1`, cada fold de teste é 1 mês; com esse
-    `n_splits`, o primeiro fold já começa com exatamente `meses_treino_inicial`
-    meses de treino (o resto é o walk-forward natural do sklearn).
+    Decisão 7 (revisão do item 1 de `docs/pendencias_parte_c.md`): um corte
+    por posição testaria cada produto num período diferente, porque produtos
+    com `n_lags` maior perdem mais linhas iniciais em
+    `features.montar_base_q1`. Com corte por data, todo produto é testado
+    exatamente nos mesmos meses — por isso é o walk-forward usado em todo o
+    pipeline (teste final em `avaliar_modelo`, validação em
+    `divisao_treino_validacao`).
     """
     base = base.sort_values("mes").reset_index(drop=True)
-    n_splits = len(base) - meses_treino_inicial
-    splitter = TimeSeriesSplit(n_splits=n_splits, test_size=1)
-    for idx_treino, idx_teste in splitter.split(base):
-        yield base.iloc[idx_treino], base.iloc[idx_teste]
+    for mes in base.loc[base["mes"] >= primeiro_mes_teste, "mes"]:
+        yield base[base["mes"] < mes], base[base["mes"] == mes]
 
 
 def metricas_regressao(y_real: np.ndarray, y_previsto: np.ndarray) -> dict[str, float]:
@@ -100,9 +92,6 @@ def direcao(preco_atual: np.ndarray, preco_referencia: np.ndarray) -> np.ndarray
 
     Decisão 7: cada previsão vira "sobe / não sobe" comparando com o preço
     atual. Aplicar tanto ao preço real do mês seguinte quanto ao previsto.
-
-    TODO: decidir se igualdade conta como "não sobe" (padrão sugerido) e se
-    haverá tolerância mínima para considerar alta.
 
     Decisão: igualdade conta como "não sobe" (`>` estrito, não `>=`); sem
     tolerância mínima por enquanto (qualquer aumento conta como "sobe"). Se a
@@ -134,8 +123,18 @@ def metricas_direcao(
     }
 
 
-def avaliar_modelo(modelo, base: pd.DataFrame, colunas_entrada: list[str], coluna_alvo: str) -> pd.DataFrame:
-    """Avalia um modelo com divisão temporal / walk-forward e reúne as métricas.
+def avaliar_modelo(
+    modelo,
+    base: pd.DataFrame,
+    colunas_entrada: list[str],
+    coluna_alvo: str,
+    primeiro_mes_teste: pd.Period,
+) -> pd.DataFrame:
+    """Avalia um modelo com walk-forward cortado por DATA e reúne as métricas.
+
+    `primeiro_mes_teste` (ver `divisao_por_data`) garante que todo produto é
+    testado nos mesmos meses, independente de quantas linhas `n_lags` consumiu
+    no início da série do produto.
 
     Deve treinar e prever respeitando a ordem do tempo, e devolver uma tabela
     com MAE, MSE e as métricas de direção, pronta para comparar com o baseline
@@ -145,7 +144,7 @@ def avaliar_modelo(modelo, base: pd.DataFrame, colunas_entrada: list[str], colun
     y_previstos = []
     precos_atuais = []
 
-    for treino_fold, teste_fold in walk_forward(base):
+    for treino_fold, teste_fold in divisao_por_data(base, primeiro_mes_teste):
         modelo.fit(treino_fold[colunas_entrada], treino_fold[coluna_alvo])
         previsto = modelo.predict(teste_fold[colunas_entrada])
 

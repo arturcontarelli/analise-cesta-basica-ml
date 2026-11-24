@@ -8,10 +8,11 @@ Decisão 6 — modelos das aulas (obrigatórios):
 
 Modelo extra (decisão 6, decidido após os primeiros resultados: nem o
 ensemble bateu o baseline com folga): Random Forest (`criar_random_forest`),
-porque bagging de árvores foi citado na aula 10 e captura relação não-linear
-entre o custo do produtor e o preço, que a regressão linear não pega.
-Gradient Boosting (`criar_gradient_boosting`) entra só como comparação
-informal — não foi dado na aula e não é o modelo extra oficial da decisão 6.
+porque bagging de árvores foi citado na aula 10 e, diferente dos modelos das
+aulas, consegue captar relações entre os lags e o preço que não sejam uma
+linha reta. Gradient Boosting (`criar_gradient_boosting`) entra só como
+comparação informal — não foi dado na aula e não é o modelo extra oficial da
+decisão 6.
 
 Todos os modelos devem seguir a interface do scikit-learn (fit/predict), para
 serem avaliados da mesma forma em `src.evaluation`.
@@ -20,7 +21,7 @@ serem avaliados da mesma forma em `src.evaluation`.
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, RegressorMixin, clone
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, VotingRegressor
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
@@ -42,8 +43,11 @@ class BaselineIngenuo(RegressorMixin, BaseEstimator):
     `RegressorMixin` precisa vir ANTES de `BaseEstimator` na herança: a partir
     do scikit-learn 1.6, `is_regressor()` usa o sistema de tags
     (`__sklearn_tags__`), e a ordem errada faz o MRO usar os tags genéricos de
-    `BaseEstimator` em vez dos de `RegressorMixin`. Sem isso, `VotingRegressor`
-    (usado no ensemble) rejeita este modelo com "should be a regressor".
+    `BaseEstimator` em vez dos de `RegressorMixin`. O ensemble (`EnsemblePonderado`)
+    não depende mais disso — ele chama `fit`/`predict` direto, sem passar por
+    `VotingRegressor` —, mas a ordem certa ainda é convenção do scikit-learn e
+    evita surpresa se este modelo for usado em outra ferramenta da biblioteca
+    (ex.: `cross_val_score`, `GridSearchCV`) que confira a tag.
 
     `predict` deve devolver a coluna do preço atual (`lag_1`, gerada em
     `features.criar_lags`). `fit` não aprende nada, só guarda o índice dessa
@@ -125,15 +129,22 @@ def criar_gradient_boosting() -> GradientBoostingRegressor:
     )
 
 
-def diagnostico_extrapolacao(base: pd.DataFrame, meses_treino: int = config.MESES_TREINO) -> dict:
+def diagnostico_extrapolacao(base: pd.DataFrame, primeiro_mes_teste: pd.Period) -> dict:
     """Indica se o teste tem preços fora do intervalo visto no treino.
 
     Random Forest e Gradient Boosting não extrapolam (decisão 6): se o
     alvo máximo do teste for maior que o do treino, esses modelos tendem a
     subestimar esses meses por limitação estrutural das árvores, não por
     falta de padrão nos dados.
+
+    Corte por DATA, não por posição (decisão 7, atualização — pendência 1):
+    `primeiro_mes_teste` deve ser o mesmo usado em `evaluation.avaliar_modelo`,
+    para que o treino/teste aqui correspondam exatamente ao período avaliado
+    (a posição variaria com `n_lags`, que agora é próprio de cada modelo —
+    pendência 2).
     """
-    treino, teste = evaluation.divisao_temporal(base, meses_treino)
+    treino = base[base["mes"] < primeiro_mes_teste]
+    teste = base[base["mes"] >= primeiro_mes_teste]
     return {
         "max_alvo_treino": treino["alvo"].max(),
         "max_alvo_teste": teste["alvo"].max(),
@@ -141,7 +152,36 @@ def diagnostico_extrapolacao(base: pd.DataFrame, meses_treino: int = config.MESE
     }
 
 
-def criar_ensemble(modelos: dict, pesos: dict[str, float]) -> VotingRegressor:
+class EnsemblePonderado(RegressorMixin, BaseEstimator):
+    """Ensemble como média PONDERADA (decisão 6), com um conjunto de colunas
+    de entrada próprio por submodelo.
+
+    Substitui o `VotingRegressor`: ele exige uma única matriz `X`
+    compartilhada entre todos os submodelos, o que obrigava baseline,
+    regressão linear e KNN a usar sempre o mesmo `n_lags` (pendência 2 —
+    `docs/pendencias_parte_c.md`). Aqui cada submodelo é
+    `(nome, modelo, colunas, peso)`, então cada um pode ser validado e usar
+    seu próprio `n_lags`, e o `X` passado a `fit`/`predict` só precisa conter
+    a união das colunas de todos os submodelos.
+    """
+
+    def __init__(self, submodelos: list[tuple[str, BaseEstimator, list[str], float]]):
+        self.submodelos = submodelos
+
+    def fit(self, X, y):
+        self.ajustados_ = [
+            (clone(modelo).fit(X[colunas], y), colunas, peso)
+            for _, modelo, colunas, peso in self.submodelos
+        ]
+        return self
+
+    def predict(self, X) -> np.ndarray:
+        previsoes = np.array([modelo.predict(X[colunas]) for modelo, colunas, _ in self.ajustados_])
+        pesos = np.array([peso for _, _, peso in self.ajustados_])
+        return np.average(previsoes, axis=0, weights=pesos)
+
+
+def criar_ensemble(submodelos: dict[str, tuple[BaseEstimator, list[str]]], pesos: dict[str, float]) -> EnsemblePonderado:
     """Cria o ensemble (aula 10) como média PONDERADA dos modelos.
 
     Decisão 6: optou-se por média ponderada em vez de stacking. Nos primeiros
@@ -151,41 +191,52 @@ def criar_ensemble(modelos: dict, pesos: dict[str, float]) -> VotingRegressor:
     treinado com poucos meses por produto (risco de instabilidade maior do
     que o ganho esperado).
 
+    `submodelos` mapeia nome -> (modelo, colunas de entrada desse modelo).
     Os pesos vêm de `escolher_pesos_ensemble` (inverso do MAE de validação),
     calculados sem olhar o teste (decisão 7).
     """
-    nomes = list(modelos.keys())
-    return VotingRegressor(
-        estimators=[(nome, modelos[nome]) for nome in nomes],
-        weights=[pesos[nome] for nome in nomes],
-    )
+    nomes = list(submodelos.keys())
+    return EnsemblePonderado([
+        (nome, submodelos[nome][0], submodelos[nome][1], pesos[nome]) for nome in nomes
+    ])
 
 
-def escolher_pesos_ensemble(base_treino, produto: str, n_lags: int, k: int) -> dict[str, float]:
+def escolher_pesos_ensemble(
+    base_treino,
+    produto: str,
+    n_lags_linear: int,
+    n_lags_knn: int,
+    k: int,
+) -> dict[str, float]:
     """Calcula os pesos do ensemble pelo inverso do erro de validação.
 
-    Usa os mesmos folds de validação de `escolher_hiperparametros`
-    (walk-forward dentro do treino, decisão 7), agora medindo o MAE de
-    baseline, regressão linear e KNN já com `n_lags`/`k` escolhidos. Peso de
-    cada modelo = 1 / (MAE médio de validação + `EPSILON_PESO`): quem erra
-    menos pesa mais; o epsilon evita divisão por zero se algum modelo acertar
-    a validação perfeitamente.
+    Cada submodelo é validado com o seu próprio `n_lags` (pendência 2 —
+    `docs/pendencias_parte_c.md`): a regressão linear usa `n_lags_linear`
+    (escolhido em `escolher_n_lags`) e o KNN usa `n_lags_knn`/`k` (escolhidos
+    juntos em `escolher_hiperparametros`). O baseline só olha `lag_1`, que
+    existe em qualquer uma das duas bases — usa-se a do KNN por conveniência.
+    Como `evaluation.divisao_treino_validacao` corta por data, os três são
+    comparados no mesmo período de validação mesmo com `n_lags` diferentes.
 
-    `VotingRegressor` já faz a média ponderada a partir dos pesos brutos, por
-    isso não é preciso normalizar para somar 1 aqui.
+    Peso de cada modelo = 1 / (MAE médio de validação + `EPSILON_PESO`):
+    quem erra menos pesa mais; o epsilon evita divisão por zero se algum
+    modelo acertar a validação perfeitamente.
+
+    `EnsemblePonderado` já faz a média ponderada (via `np.average`) a partir
+    dos pesos brutos, por isso não é preciso normalizar para somar 1 aqui.
     """
-    base = features.montar_base_q1(base_treino, produto, n_lags)
-    folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
-    colunas_entrada = [f"lag_{i}" for i in range(1, n_lags + 1)]
+    base_linear = features.montar_base_q1(base_treino, produto, n_lags_linear)
+    base_knn = features.montar_base_q1(base_treino, produto, n_lags_knn)
 
     candidatos = {
-        "baseline": BaselineIngenuo(),
-        "regressao_linear": criar_regressao_linear(),
-        "knn": criar_knn(k),
+        "baseline": (BaselineIngenuo(), base_knn, ["lag_1"]),
+        "regressao_linear": (criar_regressao_linear(), base_linear, [f"lag_{i}" for i in range(1, n_lags_linear + 1)]),
+        "knn": (criar_knn(k), base_knn, [f"lag_{i}" for i in range(1, n_lags_knn + 1)]),
     }
 
     pesos = {}
-    for nome, modelo_base in candidatos.items():
+    for nome, (modelo_base, base, colunas_entrada) in candidatos.items():
+        folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
         erros = []
         for treino_fold, validacao_fold in folds:
             modelo = clone(modelo_base)
@@ -226,3 +277,38 @@ def escolher_hiperparametros(base_treino, produto: str) -> dict:
                 melhor = {"n_lags": n_lags, "k": k, "mae": mae_medio}
 
     return {"n_lags": melhor["n_lags"], "k": melhor["k"]}
+
+
+def escolher_n_lags(base_treino, produto: str, criar_modelo) -> dict:
+    """Escolhe o número de lags que minimiza o erro de validação de um modelo
+    sem hiperparâmetro próprio (regressão linear, Random Forest, Gradient
+    Boosting).
+
+    Generaliza `escolher_hiperparametros` (que busca `n_lags` e `k` juntos,
+    só para o KNN) para dar a cada modelo seu próprio `n_lags` — pendência 2
+    (`docs/pendencias_parte_c.md`): o melhor `n_lags` para o KNN não é
+    necessariamente o melhor para os outros modelos.
+
+    `criar_modelo` é uma função sem argumentos que devolve uma instância nova
+    do modelo (ex. `criar_regressao_linear`, `criar_random_forest`). Nunca
+    olha o teste (decisão 7).
+    """
+    melhor = None
+
+    for n_lags in config.LAGS_CANDIDATOS:
+        base = features.montar_base_q1(base_treino, produto, n_lags)
+        folds = evaluation.divisao_treino_validacao(base, config.MESES_VALIDACAO)
+        colunas_entrada = [f"lag_{i}" for i in range(1, n_lags + 1)]
+
+        erros = []
+        for treino_fold, validacao_fold in folds:
+            modelo = criar_modelo()
+            modelo.fit(treino_fold[colunas_entrada], treino_fold["alvo"])
+            previsto = modelo.predict(validacao_fold[colunas_entrada])
+            erros.append(evaluation.metricas_regressao(validacao_fold["alvo"], previsto)["MAE"])
+
+        mae_medio = sum(erros) / len(erros)
+        if melhor is None or mae_medio < melhor["mae"]:
+            melhor = {"n_lags": n_lags, "mae": mae_medio}
+
+    return {"n_lags": melhor["n_lags"]}

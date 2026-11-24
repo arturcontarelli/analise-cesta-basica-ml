@@ -142,7 +142,7 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 
 **Q1 — modelo extra, decidido em 23/11/2026: Random Forest** (bagging de árvores; bagging é citado na aula 10).
 - O enunciado incentiva "estudar e aprender outros modelos", mas um modelo extra **não é necessário** para responder a questão.
-- Ele faz sentido se os modelos da aula não forem suficientes. Por exemplo, a regressão linear só capta relações em linha reta, e a relação entre custo do produtor e preço pode não ser linear.
+- Ele faz sentido se os modelos da aula não forem suficientes. Por exemplo, a regressão linear só capta relações em linha reta entre os lags e o preço, e essa relação pode não ser linear.
 - Regra: rodar primeiro os modelos da aula. Se já baterem o baseline com folga, o extra entra só como comparação ("testamos um modelo mais complexo e ele não melhorou", que também é conclusão). Se nenhum bater o baseline, o extra ajuda a descobrir se o problema é o modelo simples demais ou se os dados realmente não permitem prever. Princípio: **adicionar complexidade só quando os dados mostrarem necessidade.**
 - **Gatilho da decisão:** nem o ensemble bateu o baseline com folga (venceu em só 3 dos 14 produtos), então pela regra acima o extra virou necessário.
 - **Hiperparâmetros fixos** (não escolhidos por validação como o k do KNN): `max_depth=4`, `min_samples_leaf=2`, para não decorar o treino com só ~30 meses por produto.
@@ -151,6 +151,16 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 - **Comparação informal (não é modelo oficial):** testamos também Gradient Boosting, só para checar se boosting supera o bagging aqui. Resultado: pior que a Random Forest em 11 dos 14 produtos. Com poucos meses de treino por produto, o ajuste mais fino do boosting não compensou.
 
 **Q3:** K-Means (aula 11). Não precisa de modelo extra.
+
+**Atualização (24/11/2026) — cada modelo passa a ter seu próprio `n_lags` (resolve item 2 de `docs/pendencias_parte_c.md`):**
+
+Até aqui, `q1_models.escolher_hiperparametros` buscava `n_lags` e `k` juntos minimizando o erro do KNN, e esse `n_lags` era reaproveitado por todos os outros modelos. Conferimos que o melhor `n_lags` para o KNN difere do melhor para a regressão linear em 8 dos 14 produtos — não era um problema só teórico.
+
+**Decisão:** regressão linear, Random Forest e Gradient Boosting passam a escolher seu próprio `n_lags` (`q1_models.escolher_n_lags`, generalização de `escolher_hiperparametros` sem o `k`). O KNN continua escolhendo `n_lags` e `k` juntos, como antes.
+
+**Impacto no ensemble:** o `VotingRegressor` (usado até aqui) exige uma única matriz de entrada para todos os submodelos, o que obrigava baseline, regressão linear e KNN a compartilhar `n_lags`. Foi substituído por `q1_models.EnsemblePonderado`, uma classe própria onde cada submodelo `(nome, modelo, colunas, peso)` usa seu próprio conjunto de colunas; `fit`/`predict` treinam/preveem cada submodelo com suas colunas e combinam as previsões pela mesma média ponderada de antes (`np.average`).
+
+**Risco identificado e corrigido:** dar `n_lags` diferente a cada submodelo só é válido se todos forem validados no mesmo período — senão o cálculo dos pesos do ensemble reintroduziria o problema do item 1 (comparar erro em períodos diferentes), agora na validação em vez do teste. Por isso `evaluation.divisao_treino_validacao` também passou a cortar por **data** (reaproveitando `divisao_por_data`), em vez de pela posição da linha: como `features.montar_base_q1` só descarta linhas por falta de histórico no INÍCIO da série (a última linha é sempre descartada igual, por falta de alvo), o mês mais recente de qualquer base é sempre o mesmo, então cortar pelos últimos `MESES_VALIDACAO` meses por data vale para qualquer `n_lags`.
 
 ---
 
@@ -170,6 +180,16 @@ Café, Arroz, Feijão, Leite, Manteiga, Farinha de Trigo, Óleo, Açúcar, Tomat
 **Métricas da Q3:** cotovelo, silhueta e Xie-Beni para escolher k e avaliar os grupos (aulas 11 e 12), economia em R$ entre grupos e estabilidade dos grupos no tempo.
 
 **Conclusão negativa também é resultado:** com só 48 meses, é possível que nenhum modelo bata o baseline. Se acontecer, a conclusão é que o preço desses itens é praticamente imprevisível no curto prazo e a melhor estimativa disponível é o preço atual. Isso deve ser reportado com justificativa, não escondido.
+
+**Atualização (24/11/2026) — corte do teste final por DATA, não por posição (resolve item 1 de `docs/pendencias_parte_c.md`):**
+
+`features.montar_base_q1` descarta as primeiras `n_lags − 1` linhas de cada produto (sem histórico de lag), então um corte por **posição da linha** (`walk_forward`, usado antes em `avaliar_modelo`) testava cada produto num período diferente — de 6 meses (produtos com `n_lags = 6`) a 11 meses (produtos com `n_lags = 1`).
+
+**Decisão:** `avaliar_modelo` agora corta por **data** (`evaluation.divisao_por_data`, a mesma função que a parte B já usava em `conab_analise.comparar_modelos_com_sem_conab`, só que movida de `conab_analise.py` para `evaluation.py` por ser lógica geral da Q1, não específica da CONAB). O notebook 04 calcula `primeiro_mes_teste = meses_ordenados[config.MESES_TREINO]` (o 37º mês da série completa) uma única vez e passa para todo produto.
+
+**Resultado:** os 14 produtos passam a ser testados exatamente nos mesmos 11 meses (set/2025 a jul/2026) — a frase "treinar até o mês 36 e testar nos meses 37 a 48" acima vale para todos, não só para os produtos de `n_lags = 1`. O treino ainda varia de tamanho entre produtos (de 31 a 36 meses, conforme o `n_lags`), mas sempre termina no mesmo mês; não há vazamento, pois `primeiro_mes_teste` é sempre posterior aos 36 meses usados por `escolher_hiperparametros`.
+
+*(Nota: esta frase descrevia o estado logo após o item 1. O item 2 passou a cortar `divisao_treino_validacao` por data também, pelo mesmo motivo — ver atualização da decisão 6 abaixo. `walk_forward` e `divisao_temporal`, sem nenhum uso restante em código de produção, foram removidos ao final do item 4.)*
 
 ---
 
