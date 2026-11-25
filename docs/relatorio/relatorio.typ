@@ -7,7 +7,7 @@
 #let professor = "Fernando S. de Aguiar Neto"
 #let titulo = "ANÁLISE E PREVISÃO DE PREÇOS DA CESTA BÁSICA"
 #let subtitulo = "um estudo com aprendizado supervisionado e não supervisionado"
-#let autores = ("Artur Contarelli", "Guilerme Eid", "Lucas Sabino", "Tiago Rodrigues")
+#let autores = ("Artur Contarelli", "Guilherme Eid", "Lucas Sabino", "Tiago Rodrigues")
 #let cidade = "Campinas"
 #let ano = "2026"
 
@@ -242,7 +242,7 @@ A @tab-baseline resume, para os 14 produtos, quantas vezes cada modelo obteve um
   )
 ) <tab-baseline>
 
-A regressão linear é a abordagem que mais se aproxima do baseline, mas nenhum modelo o supera na maioria dos produtos — em 8 dos 14 produtos (entre eles café, carne bovina, feijão, leite e pão francês), o baseline tem o menor MAE de todos. A @fig-mae ilustra essa comparação para todos os produtos e modelos.
+A regressão linear é a abordagem que mais se aproxima do baseline, mas ainda fica acima dele em 8 dos 14 produtos. Em 6 deles (banana prata, café, carne bovina, feijão, leite e pão francês), nenhum modelo o supera. A @fig-mae ilustra essa comparação para todos os produtos e modelos.
 
 #figure(
   image("../../reports/figures/04_mae_relativo_baseline.png", width: 92%),
@@ -339,7 +339,7 @@ Convertendo a diferença de preço relativo em reais pela Cesta Básica do DIEES
 
 = Conclusão
 
-A Q1 recebe uma resposta parcialmente negativa, e essa é uma conclusão válida, não uma falha da análise: nenhum dos modelos testados supera o baseline ingênuo de forma consistente entre os 14 produtos. A regressão linear é a abordagem que mais se aproxima, batendo o baseline em 6 produtos, mas em mais da metade dos casos o melhor palpite continua sendo "o preço do mês seguinte é parecido com o de hoje". Isso indica que, com um histórico de apenas 48 meses por produto, os dados atuais não sustentam um modelo de previsão de curto prazo claramente melhor do que a repetição do preço atual — o que, do ponto de vista de quem planeja orçamento, já é uma informação útil: não há, hoje, uma alternativa confiável e simples ao preço mais recente observado.
+A Q1 recebe uma resposta parcialmente negativa, e essa é uma conclusão válida, não uma falha da análise: nenhum dos modelos testados supera o baseline ingênuo de forma consistente entre os 14 produtos. A regressão linear é a abordagem que mais se aproxima, batendo o baseline em 6 produtos, mas em 6 dos 14 casos o melhor palpite continua sendo "o preço do mês seguinte é parecido com o de hoje". Isso indica que, com um histórico de apenas 48 meses por produto, os dados atuais não sustentam um modelo de previsão de curto prazo claramente melhor do que a repetição do preço atual — o que, do ponto de vista de quem planeja orçamento, já é uma informação útil: não há, hoje, uma alternativa confiável e simples ao preço mais recente observado.
 
 A Q3 recebe uma resposta afirmativa e quantificada: existem, sim, mercados consistentemente mais baratos. O agrupamento identifica três grupos com perfis de preço distintos, estáveis ao longo de quatro anos de dados, e a diferença entre escolher bem e escolher mal onde comprar é substancial — da ordem de R\$ 2 mil por ano para uma família que segue a Cesta Básica do DIEESE. Esse resultado tem aplicação direta para o consumidor que hoje não sabe, de forma sistemática, onde comprar de forma consistentemente mais barata.
 
