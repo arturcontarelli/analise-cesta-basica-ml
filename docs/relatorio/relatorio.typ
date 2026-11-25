@@ -85,21 +85,13 @@
   #v(1fr)
   #for a in autores [#a \ ]
   #v(1fr)
-  #block(width: 80%)[
-    #text(weight: "bold", size: 14pt)[#upper(titulo)] \
-    #v(0.2cm)
-    #text(size: 12pt)[#subtitulo]
-  ]
-  #v(1fr)
-  #cidade \
-  #ano
 ]
 
 // FOLHA DE ROSTO
 #[
   #set align(center)
   #set par(first-line-indent: 0cm)
-  #for a in autores [#a \ ]
+
   #v(1fr)
   #block(width: 80%)[
     #text(weight: "bold", size: 14pt)[#upper(titulo)] \
