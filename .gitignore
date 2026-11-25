@@ -21,4 +21,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# PDF compilado do relatório Typst (gerar com: typst compile --root . docs/relatorio/relatorio.typ)
+docs/slides/
+
 # ATENÇÃO: NÃO ignorar data/raw/. O enunciado exige entregar as bases usadas.
